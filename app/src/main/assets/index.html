@@ -796,6 +796,10 @@ function launch(i){
     if(!ok) toast("Chưa cài hoặc không mở được "+a.name, 4000);
     return;
   }
+  // Xem trên máy tính / iPhone: không có app Android để mở, chỉ báo nhẹ (tránh hộp lỗi của Safari)
+  if(!window.fully && !/Android/i.test(navigator.userAgent)){
+    toast("Đang xem trên máy tính — "+a.name+" chỉ mở được trên TV/box Android", 4000); return;
+  }
   var F = window.fully, steps=[];
   function go(u){ if(u.indexOf("launchFlags=")<0) u=u.replace("#Intent;","#Intent;launchFlags=0x10000000;"); window.location.href=u; }
   if(a.link){
