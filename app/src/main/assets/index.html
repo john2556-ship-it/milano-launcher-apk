@@ -237,6 +237,8 @@
   .srow canvas{height:34px;width:100px;flex-basis:100px}
   #sUpdated{margin-top:4px;font-size:14px}
   #aiA{max-height:250px;font-size:25px}
+  .glass{background:rgba(14,18,28,0.42)}
+  #infoCard .tile{background:rgba(255,255,255,0.08)}
 </style>
 </head>
 <body>
@@ -752,6 +754,7 @@ function renderGold(){
     if(goldSeries) h = goldSeries.map(function(x,i){ return {t:i, v:x*(37.5/31.1035)*usdVnd/1e6}; });
     setTile("gBuy","QUY ĐỔI", m.toFixed(1).replace(".",","));
     chg($("gBuyChg"),h,1); spark($("sparkGold"),h);
+    if(goldSeries && $("gBuyChg").textContent) $("gBuyChg").textContent += " · 30 ngày";
   }
 }
 function loadSjc(){
