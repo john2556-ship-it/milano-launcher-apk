@@ -2,6 +2,8 @@
 
 App launcher riêng cho box Onn 4K Pro: mở trang launcher web toàn màn hình, làm màn hình Home.
 
+**Cài bằng Downloader trên TV:** nhập mã **`2328804`** (luôn tải bản mới nhất)
+
 **Tải APK mới nhất:**
 https://github.com/john2556-ship-it/milano-launcher-apk/releases/latest/download/MilanoLauncher.apk
 
