@@ -63,7 +63,28 @@
   .fc .t{font-size:19px}
   .fc .t span{color:var(--muted)}
   .markets{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.15)}
-  .mhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .mtabs{display:none;gap:8px;margin-bottom:12px}
+  .mtabs.on{display:flex}
+  .mtabs span{font-size:16px;padding:4px 14px;border-radius:12px;background:rgba(255,255,255,.08);color:var(--muted);transition:all .3s}
+  .mtabs span.on{background:rgba(255,255,255,.25);color:#fff;font-weight:600}
+  #stockView{display:none;min-height:400px}
+  .markets.show-stock #goldView{display:none}
+  .markets.show-stock #stockView{display:block;animation:fadeIn .5s}
+  .markets #goldView{animation:fadeIn .5s}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .srow{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+  .srow:last-child{border-bottom:none}
+  .srow .sn{flex:1;min-width:0}
+  .srow .sn b{display:block;font-size:23px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .srow .sn small{font-size:15px;color:var(--muted)}
+  .srow .sp{text-align:right;min-width:140px}
+  .srow .sp b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+  .srow .sp .chg{display:inline-block;margin-top:2px;font-size:15px;padding:1px 9px;border-radius:9px;background:rgba(0,0,0,.25)}
+  .srow canvas{width:110px;height:40px;flex:0 0 110px}
+  #sState{font-size:16px}
+  #sUpdated{font-size:15px;color:rgba(255,255,255,.45);text-align:right;margin-top:6px}
+  .mhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
+  .mhead>span:first-child{font-size:28px;font-weight:600;white-space:nowrap}
   #gTitle{font-size:28px;font-weight:600}
   #mUpdated{font-size:16px;color:rgba(255,255,255,0.5)}
   .tiles{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -230,6 +251,8 @@
     </div>
     <div class="forecast" id="forecast"></div>
     <div class="markets">
+      <div class="mtabs" id="mTabs"><span id="tabGold" class="on">Vàng</span><span id="tabStock">Chứng khoán</span></div>
+      <div id="goldView">
       <div class="mhead"><span id="gTitle">Giá vàng</span><span id="mUpdated"></span></div>
       <div class="tiles">
         <div class="tile"><div class="tl">MUA VÀO</div><div class="tv buy" id="gBuy">—</div><div class="tu">triệu đ/lượng</div><div class="chg" id="gBuyChg"></div></div>
@@ -239,6 +262,12 @@
       <canvas id="sparkGold" width="980" height="150" style="width:490px;height:75px"></canvas>
       <div class="mrow"><span class="lbl">Vàng thế giới</span><span><b id="mGold">—</b> <span class="chg" id="mGoldChg"></span></span></div>
       <div class="mrow"><span class="lbl">USD → VND</span><span><b id="mUsd">—</b> <span class="chg" id="mUsdChg"></span></span></div>
+      </div>
+      <div id="stockView">
+        <div class="mhead"><span>Chứng khoán Mỹ</span><span id="sState"></span></div>
+        <div id="stockList"></div>
+        <div id="sUpdated"></div>
+      </div>
     </div>
     <div id="aiPanel">
       <div class="ai-head"><span>✨ Hỏi AI</span><span id="aiStatus"></span></div>
@@ -290,6 +319,12 @@
 
         <div class="field full"><label>Nguồn giá vàng SJC (URL trả JSON dạng {"buy":135.0,"sell":138.0} — để trống = dùng giá thế giới quy đổi)</label>
           <input id="sSjc" class="focusable" type="text" placeholder="https://gold.milanonailspa529.com/sjc.json"></div>
+
+        <div class="sec-title">Khung bên phải: Vàng & Chứng khoán (cần máy chủ AI bên dưới)</div>
+        <div class="field"><label>Hiển thị</label>
+          <select id="sPanel" class="focusable"><option value="auto">Tự đổi Vàng ↔ Chứng khoán</option><option value="gold">Chỉ giá vàng</option><option value="stock">Chỉ chứng khoán</option></select></div>
+        <div class="field"><label>Mã chứng khoán (cách nhau dấu phẩy, tối đa 5)</label>
+          <input id="sStocks" class="focusable" type="text" placeholder="^GSPC,^DJI,^IXIC,AAPL"></div>
 
         <div class="sec-title">Hỏi AI (Gemini + Google Search)</div>
         <div class="field full"><label>Địa chỉ máy chủ AI (Cloudflare Worker)</label>
@@ -677,7 +712,7 @@ function chg(el, h, digits){
   el.className="chg "+(p>=0?"up":"down");
   el.textContent=(p>=0?"▲ ":"▼ ")+Math.abs(p).toFixed(digits||2)+"%";
 }
-var usdVnd=null, goldUsd=null;
+var usdVnd=null, goldUsd=null, goldSeries=null;
 function fmt(n,d){ return n.toLocaleString("vi-VN",{maximumFractionDigits:d||0}); }
 function toMillion(v){ v=parseFloat(String(v).replace(/[^\d.]/g,"")); if(!v) return null;
   if(v>1e6) return v/1e6; if(v>1000) return v/1000; return v; }   // chấp nhận đ, nghìn đ hoặc triệu đ
@@ -690,6 +725,8 @@ function renderGold(){
   if(usdVnd && goldUsd){
     // 1 lượng = 37,5g; 1 troy oz = 31,1035g — chưa gồm thuế/phí, thấp hơn giá SJC
     var m = goldUsd*(37.5/31.1035)*usdVnd/1e6, h=hist("tv_goldvnd", m);
+    // Có 30 phiên vàng COMEX từ máy chủ: dùng làm biểu đồ 30 ngày thật
+    if(goldSeries) h = goldSeries.map(function(x,i){ return {t:i, v:x*(37.5/31.1035)*usdVnd/1e6}; });
     setTile("gBuy","QUY ĐỔI", m.toFixed(1).replace(".",","));
     chg($("gBuyChg"),h,1); spark($("sparkGold"),h);
   }
@@ -918,7 +955,7 @@ var pendingBgData=null, lastFocusBeforeSettings=null;
 function openSettings(){
   lastFocusBeforeSettings=current;
   $("sTitle").value=cfg.title||""; $("sBgUrl").value=cfg.bgData?"":(cfg.bgUrl||"");
-  $("sLoc").value=cfg.loc; $("sUnit").value=cfg.unit; $("sSjc").value=cfg.sjcUrl||""; $("sAiUrl").value=cfg.aiUrl||""; $("sAiToken").value=cfg.aiToken||""; $("sAiSpeak").value=cfg.aiSpeak===false?"0":"1"; $("sWeek").value=cfg.showWeek===false?"0":"1"; sel.value=""; $("sBgFile").value=""; pendingBgData=null;
+  $("sLoc").value=cfg.loc; $("sUnit").value=cfg.unit; $("sSjc").value=cfg.sjcUrl||""; $("sAiUrl").value=cfg.aiUrl||""; $("sAiToken").value=cfg.aiToken||""; $("sAiSpeak").value=cfg.aiSpeak===false?"0":"1"; $("sWeek").value=cfg.showWeek===false?"0":"1"; $("sPanel").value=cfg.panel||"auto"; $("sStocks").value=cfg.stocks||DEF_STOCKS; sel.value=""; $("sBgFile").value=""; pendingBgData=null;
   renderAppList(); $("sCName").value=""; $("sCPkg").value=""; loadInstalled();
   $("settings").classList.add("open");
   setFocus($("sTitle"));
@@ -937,6 +974,7 @@ function saveSettings(){
   else if(sel.value!==""){ cfg.bgUrl=BG_PRESETS[+sel.value].url; cfg.bgData=""; }
   else if(url){ cfg.bgUrl=url; cfg.bgData=""; }
   cfg.loc=$("sLoc").value; cfg.unit=$("sUnit").value; cfg.sjcUrl=$("sSjc").value.trim(); cfg.aiUrl=$("sAiUrl").value.trim(); cfg.aiToken=$("sAiToken").value.trim(); cfg.aiSpeak=$("sAiSpeak").value==="1"; cfg.showWeek=$("sWeek").value==="1"; renderWeek();
+  cfg.panel=$("sPanel").value; cfg.stocks=$("sStocks").value.trim()||DEF_STOCKS; loadStocks(); applyPanel();
   if(save()){
     applyTitle(); applyBg();
     if(oldLoc!==cfg.loc||oldUnit!==cfg.unit) loadWeather(); loadMarkets();
@@ -965,6 +1003,55 @@ $("sBgFile").addEventListener("change", function(){
   };
   rd.readAsDataURL(f);
 });
+
+/* ================= CHỨNG KHOÁN (qua Worker /quote) ================= */
+var DEF_STOCKS="^GSPC,^DJI,^IXIC,AAPL", stockOk=false, panelTimer=null, showStock=false;
+function quoteUrl(syms){
+  try{ var u=new URL(cfg.aiUrl); u.pathname="/quote"; u.search="?s="+encodeURIComponent(syms); return u.toString(); }catch(e){ return ""; }
+}
+function fmtNum(v){ return v.toLocaleString("vi-VN",{minimumFractionDigits:v<1000?2:0, maximumFractionDigits:2}); }
+function loadStocks(){
+  if(!cfg.aiUrl){ stockOk=false; applyPanel(); return; }
+  var syms=(cfg.stocks||DEF_STOCKS).split(",").map(function(x){return x.trim();}).filter(Boolean).slice(0,5);
+  var url=quoteUrl(syms.concat(["GC=F"]).join(",")); if(!url) return;
+  fetch(url,{headers:{"X-App-Token":cfg.aiToken||""}}).then(function(r){return r.json();}).then(function(j){
+    if(!j.quotes) throw 0;
+    var rows="", open=false, gold=null;
+    j.quotes.forEach(function(q){
+      if(q.symbol==="GC=F"){ gold=q; return; }
+      if(q.error){ rows+='<div class="srow"><div class="sn"><b>'+esc(q.symbol)+'</b><small>Không có dữ liệu</small></div></div>'; return; }
+      if(q.state==="REGULAR") open=true;
+      var up=q.change>=0;
+      rows+='<div class="srow"><div class="sn"><b>'+esc(q.name)+'</b><small>'+esc(q.symbol)+'</small></div>'+
+        '<canvas width="220" height="80" data-c="'+q.closes.join(",")+'"></canvas>'+
+        '<div class="sp"><b>'+fmtNum(q.price)+'</b><span class="chg '+(up?"up":"down")+'">'+(up?"▲ ":"▼ ")+Math.abs(q.change).toFixed(2)+'%</span></div></div>';
+    });
+    $("stockList").innerHTML=rows;
+    Array.prototype.forEach.call($("stockList").querySelectorAll("canvas"), function(c){
+      var v=c.dataset.c.split(",").map(Number).filter(isFinite);
+      spark(c, v.map(function(x,i){return {t:i,v:x};}));
+    });
+    $("sState").innerHTML = open ? '<span class="up">● Đang giao dịch</span>' : '<span style="color:var(--muted)">Đã đóng cửa</span>';
+    var d=new Date(); $("sUpdated").textContent="Cập nhật "+pad(d.getHours())+":"+pad(d.getMinutes())+" · có thể trễ 15 phút";
+    // Có dữ liệu vàng COMEX 30 phiên: vẽ biểu đồ 30 ngày thật cho giá vàng quy đổi
+    if(gold && gold.closes && gold.closes.length>1){ goldSeries=gold.closes; renderGold(); }
+    stockOk=true; applyPanel();
+  }).catch(function(){ stockOk=false; applyPanel(); });
+}
+function setPanel(stock){
+  showStock=stock;
+  document.querySelector(".markets").classList.toggle("show-stock", stock);
+  $("tabGold").classList.toggle("on", !stock); $("tabStock").classList.toggle("on", stock);
+}
+function applyPanel(){
+  clearInterval(panelTimer);
+  var mode=cfg.panel||"auto";
+  $("mTabs").classList.toggle("on", stockOk && mode==="auto");
+  if(!stockOk || mode==="gold"){ setPanel(false); return; }
+  if(mode==="stock"){ setPanel(true); return; }
+  panelTimer=setInterval(function(){ if(!$("infoCard").classList.contains("ai-mode")) setPanel(!showStock); }, 15000);
+}
+loadStocks(); setInterval(loadStocks, 5*60*1000);
 
 /* ================= HỎI AI ================= */
 var ai={state:"idle"}, rec=null, aiTimer=null;
