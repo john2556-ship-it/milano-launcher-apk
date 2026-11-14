@@ -1,0 +1,57 @@
+name: Build Milano Launcher APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Kiểm tra mật khẩu khóa ký
+        env:
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+        run: |
+          if [ -z "$KEYSTORE_PASS" ]; then
+            echo "::error::Chưa có secret KEYSTORE_PASS (Settings → Secrets and variables → Actions)"
+            exit 1
+          fi
+
+      - name: Build APK
+        shell: bash
+        env:
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+        run: gradle :app:assembleRelease -PversionCode=${{ github.run_number }} --no-daemon --stacktrace
+
+      - name: Đổi tên file
+        run: cp app/build/outputs/apk/release/app-release.apk MilanoLauncher.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MilanoLauncher-1.0.${{ github.run_number }}
+          path: MilanoLauncher.apk
+
+      - name: Đăng lên Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Milano Launcher 1.0.${{ github.run_number }}
+          body: |
+            Tải về: https://github.com/${{ github.repository }}/releases/latest/download/MilanoLauncher.apk
+          files: MilanoLauncher.apk
+          make_latest: true
