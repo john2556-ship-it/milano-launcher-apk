@@ -453,13 +453,16 @@ function appLink(a){
 }
 function esc(t){ return String(t||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
 
-var DEFAULTS = {title:"Milano Nail Spa Elyson", bgUrl:BG_PRESETS[0].url, bgData:"", loc:"auto", unit:"F", sjcUrl:"", apps:null, aiUrl:"", aiToken:"", aiSpeak:true, aiAdded:false};
+var DEFAULTS = {title:"Milano Nail Spa Elyson", bgUrl:BG_PRESETS[0].url, bgData:"", loc:"auto", unit:"F", sjcUrl:"", apps:null, aiUrl:"https://milano-ai.john2556.workers.dev", aiToken:"milano2026", aiSpeak:true, aiAdded:false};
 var cfg = load();
 
 function load(){
   try{ var c = JSON.parse(localStorage.getItem("tvlauncher_cfg")||"{}");
        var o = Object.assign({}, DEFAULTS, c);
        if(!Array.isArray(o.apps) || !o.apps.length) o.apps = defaultApps();
+       // Máy đã lưu cài đặt cũ với ô AI để trống: tự điền máy chủ AI mặc định
+       if(!o.aiUrl){ o.aiUrl=DEFAULTS.aiUrl; if(!o.aiToken) o.aiToken=DEFAULTS.aiToken; }
+       if(/^http:\/\//i.test(o.aiUrl)) o.aiUrl=o.aiUrl.replace(/^http:/i,"https:");
        if(!o.aiAdded){   // đưa thẻ "Hỏi AI" vào danh sách app đã lưu từ bản cũ
          if(!o.apps.some(function(a){return a.action==="ai";})) o.apps.splice(1,0,Object.assign({},CATALOG[1]));
          o.aiAdded=true;
