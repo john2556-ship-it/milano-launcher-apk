@@ -1118,21 +1118,28 @@ function aiSendText(){
   setFocus(appsEl.children[ix>=0?ix:0]); askServer({text:q}, q);
 }
 function startRec(){
-  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}})
+  // Không lọc ồn mạnh: một số box TV / máy Mac lọc mất cả giọng nói khi đứng xa micro
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:true}})
   .then(function(stream){
     var AC=window.AudioContext||window.webkitAudioContext, ctx=new AC();
+    try{ if(ctx.state==="suspended") ctx.resume(); }catch(e){}
     var src=ctx.createMediaStreamSource(stream), proc=ctx.createScriptProcessor(4096,1,1);
-    var r={stream:stream, ctx:ctx, src:src, proc:proc, chunks:[], rate:ctx.sampleRate, heard:false, t0:Date.now(), last:0};
+    var r={stream:stream, ctx:ctx, src:src, proc:proc, chunks:[], rate:ctx.sampleRate, heard:false, t0:Date.now(), last:0,
+           floor:0, nFloor:0, peak:0};
     var bars=$("aiWave").children;
     proc.onaudioprocess=function(e){
       if(rec!==r) return;
       var d=e.inputBuffer.getChannelData(0); r.chunks.push(new Float32Array(d));
       var sum=0; for(var i=0;i<d.length;i+=4) sum+=d[i]*d[i];
       var rms=Math.sqrt(sum/(d.length/4)), now=Date.now();
-      for(var b=0;b<bars.length;b++) bars[b].style.height=Math.min(86,14+rms*900*(0.5+Math.random()))+"px";
-      if(rms>0.02){ r.heard=true; r.last=now; }
-      // Tự dừng: im lặng 1,5 giây sau khi nói, tối đa 12 giây, hoặc 6 giây không nghe gì
-      if((r.heard && now-r.last>1500) || now-r.t0>12000 || (!r.heard && now-r.t0>6000)) stopRec(false);
+      if(rms>r.peak) r.peak=rms;
+      // 0,4 giây đầu: đo tiếng ồn nền của phòng để tự đặt ngưỡng
+      if(now-r.t0<400){ r.floor=(r.floor*r.nFloor+rms)/(r.nFloor+1); r.nFloor++; }
+      var thr=Math.max(0.004, r.floor*2.5);
+      for(var b=0;b<bars.length;b++) bars[b].style.height=Math.min(86,14+(rms/thr)*18*(0.6+Math.random()*0.4))+"px";
+      if(now-r.t0>=400 && rms>thr){ r.heard=true; r.last=now; }
+      // Tự dừng: im 1,5 giây sau khi nói, tối đa 12 giây, hoặc 8 giây chưa nghe rõ
+      if((r.heard && now-r.last>1500) || now-r.t0>12000 || (!r.heard && now-r.t0>8000)) stopRec(false);
     };
     src.connect(proc); proc.connect(ctx.destination);
     rec=r; ai.state="listening";
@@ -1144,7 +1151,11 @@ function stopRec(cancel){
   try{ r.stream.getTracks().forEach(function(t){t.stop();}); r.ctx.close(); }catch(e){}
   var bars=$("aiWave").children; for(var b=0;b<bars.length;b++) bars[b].style.height="";
   if(cancel) return;
-  if(!r.heard){ aiWave(""); aiStatus("Không nghe thấy gì — bấm OK để thử lại"); ai.state="idle"; aiAutoClose(); return; }
+  if(!r.heard){
+    // Micro hoàn toàn im lặng: thiết bị không cho thu tiếng → chuyển sang gõ chữ
+    if(r.peak<0.0015){ aiTextMode("Micro không thu được âm thanh (mức "+r.peak.toFixed(4)+")"); return; }
+    // Có tiếng nhỏ: vẫn gửi cho Gemini nghe thử thay vì bỏ qua
+  }
   var wav=encodeWav(r.chunks, r.rate, 16000);
   askServer({audio:{mime:"audio/wav", data:wav}}, "");
 }
