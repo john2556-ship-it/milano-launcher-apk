@@ -821,7 +821,11 @@ function launch(i){
   var M = window.MilanoApp;
   if(M){   // Đang chạy trong app Milano Launcher: mở bằng Android trực tiếp
     var ok=false;
-    try{ ok = a.link ? M.openIntent(a.link) : (M.openApp(a.pkg) || M.openIntent(appLink(a))); }catch(e){}
+    try{
+      var isAssist = a.action==="assist" || /VOICE_ASSIST|action\.ASSIST/.test(a.link||"");
+      if(isAssist && M.openAssistant) ok = M.openAssistant();
+      if(!ok) ok = a.link ? M.openIntent(a.link) : (M.openApp(a.pkg) || M.openIntent(appLink(a)));
+    }catch(e){}
     if(!ok) toast("Chưa cài hoặc không mở được "+a.name, 4000);
     return;
   }

@@ -215,6 +215,27 @@ public class MainActivity extends Activity {
         return start(it);
     }
 
+    /** Mở trợ lý của hệ thống (Gemini / Google Assistant) như khi bấm nút trợ lý trên remote. */
+    private boolean openAssistant() {
+        try {
+            if (showAssist(null)) return true;
+        } catch (Exception ignored) {
+        }
+        String[] actions = {
+                Intent.ACTION_ASSIST,
+                Intent.ACTION_VOICE_COMMAND,
+                "android.intent.action.VOICE_ASSIST",
+                "android.speech.action.VOICE_SEARCH_HANDS_FREE",
+                "android.speech.action.WEB_SEARCH",
+        };
+        for (String a : actions) {
+            Intent it = new Intent(a).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (start(it)) return true;
+        }
+        // Cuối cùng: mở app tìm kiếm giọng nói của Google TV
+        return openApp("com.google.android.katniss") || openApp("com.google.android.tvrecommendations");
+    }
+
     private boolean openUri(String uri) {
         Intent it;
         try {
@@ -246,6 +267,18 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean openApp(String pkg) {
             return MainActivity.this.openApp(pkg);
+        }
+
+        @JavascriptInterface
+        public boolean openAssistant() {
+            final boolean[] ok = {false};
+            final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+            // showAssist phải chạy trên luồng giao diện; chờ tối đa 1,5 giây lấy kết quả
+            runOnUiThread(() -> {
+                try { ok[0] = MainActivity.this.openAssistant(); } finally { done.countDown(); }
+            });
+            try { done.await(1500, java.util.concurrent.TimeUnit.MILLISECONDS); } catch (InterruptedException ignored) { }
+            return ok[0];
         }
 
         @JavascriptInterface
