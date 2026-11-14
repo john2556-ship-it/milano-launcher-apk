@@ -122,6 +122,19 @@
   .arow .an small{display:block;font-size:16px;color:var(--muted)}
   .btn.mini{font-size:22px;padding:8px 20px;border-radius:12px}
   .btn.danger{background:rgba(255,80,80,.3)}
+  #weekCal{margin-top:26px;padding:16px 20px 14px;width:780px;border-radius:26px}
+  #weekCal.off{display:none}
+  .wk-days{display:flex;gap:8px}
+  .wk{flex:1;text-align:center;padding:8px 0 10px;border-radius:16px}
+  .wk .dw{font-size:17px;color:var(--muted)}
+  .wk .dd{font-size:34px;font-weight:500;line-height:1.15}
+  .wk .dl{font-size:16px;color:var(--muted)}
+  .wk.sun .dw,.wk.sun .dd{color:#ff9d9d}
+  .wk.today{background:rgba(255,255,255,.2);box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)}
+  .wk .dl.hl{color:#ffd88a;font-weight:600}
+  .wk .dot{display:block;width:6px;height:6px;border-radius:3px;margin:4px auto 0;background:#ffd88a}
+  #wkNext{margin-top:10px;font-size:19px;color:var(--muted);padding-left:6px}
+  #wkNext b{color:#fff;font-weight:600}
   #aiPanel{display:none;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15)}
   #infoCard.ai-mode .markets{display:none}
   #infoCard.ai-mode #aiPanel{display:block}
@@ -194,6 +207,7 @@
     <div id="solar"></div>
     <div id="lunar"></div>
     <div id="customTitle"></div>
+    <div id="weekCal" class="glass"><div class="wk-days" id="wkDays"></div><div id="wkNext"></div></div>
   </div>
 
   <!-- Nút cài đặt ẩn -->
@@ -255,6 +269,9 @@
           <input id="sBgFile" class="focusable" type="file" accept="image/*"></div>
         <div class="field"><label>Ảnh nền có sẵn</label>
           <select id="sBgPreset" class="focusable"></select></div>
+
+        <div class="field"><label>Lịch tuần âm–dương</label>
+          <select id="sWeek" class="focusable"><option value="1">Hiện</option><option value="0">Ẩn</option></select></div>
 
         <div class="sec-title">Thời tiết</div>
         <div class="field"><label>Vị trí</label>
@@ -510,6 +527,7 @@ function tick(){
   var key=d.toDateString();
   if(key!==lastDateKey){
     lastDateKey=key;
+    if(typeof renderWeek==="function" && $("wkDays")) setTimeout(renderWeek,0);
     $("solar").textContent = THU[d.getDay()]+", ngày "+d.getDate()+" tháng "+(d.getMonth()+1)+" năm "+d.getFullYear();
     var L = solar2Lunar(d.getDate(), d.getMonth()+1, d.getFullYear(), 7);
     var extra = L.day===1?" · Mùng Một": L.day===15?" · Rằm":"";
@@ -519,6 +537,51 @@ function tick(){
   }
 }
 tick(); setInterval(tick, 1000);
+/* ===== Widget lịch tuần âm–dương + ngày lễ sắp tới ===== */
+var LE_AM = {"1-1":"Tết Nguyên Đán","2-1":"Mùng 2 Tết","3-1":"Mùng 3 Tết","15-1":"Rằm tháng Giêng","10-3":"Giỗ Tổ Hùng Vương",
+  "15-4":"Lễ Phật Đản","5-5":"Tết Đoan Ngọ","15-7":"Lễ Vu Lan","15-8":"Tết Trung Thu","23-12":"Ông Công Ông Táo"};
+var LE_DUONG = {"1-1":"Tết Dương lịch","14-2":"Valentine","30-4":"Giải phóng miền Nam","1-5":"Quốc tế Lao động",
+  "4-7":"Independence Day","2-9":"Quốc khánh","31-10":"Halloween","24-12":"Đêm Giáng Sinh","25-12":"Giáng Sinh"};
+function leDuong(d){
+  var k=d.getDate()+"-"+(d.getMonth()+1); if(LE_DUONG[k]) return LE_DUONG[k];
+  var m=d.getMonth(), wd=d.getDay(), n=Math.ceil(d.getDate()/7);
+  if(m===10 && wd===4 && n===4) return "Thanksgiving";
+  if(m===4 && wd===0 && n===2) return "Mother's Day";
+  if(m===5 && wd===0 && n===3) return "Father's Day";
+  return "";
+}
+function leCuaNgay(d){
+  var L=solar2Lunar(d.getDate(), d.getMonth()+1, d.getFullYear(), 7);
+  var am = L.leap ? "" : (LE_AM[L.day+"-"+L.month]||"");
+  return {L:L, ten: am || leDuong(d)};
+}
+var THU_NGAN=["CN","T2","T3","T4","T5","T6","T7"];
+function renderWeek(){
+  var box=$("weekCal"); box.classList.toggle("off", cfg.showWeek===false);
+  if(cfg.showWeek===false) return;
+  var now=new Date(), start=new Date(now.getFullYear(), now.getMonth(), now.getDate()-((now.getDay()+6)%7)), html="";
+  for(var i=0;i<7;i++){
+    var d=new Date(start.getFullYear(), start.getMonth(), start.getDate()+i), x=leCuaNgay(d), L=x.L;
+    var am = L.day===1 ? "1/"+L.month : (L.day===15 ? "Rằm" : L.day);
+    var hl = (L.day===1||L.day===15) ? " hl" : "";
+    var today = d.toDateString()===now.toDateString() ? " today" : "";
+    html+='<div class="wk'+today+(d.getDay()===0?" sun":"")+'" title="'+esc(x.ten)+'"><div class="dw">'+THU_NGAN[d.getDay()]+'</div>'+
+      '<div class="dd">'+d.getDate()+'</div><div class="dl'+hl+'">'+am+'</div>'+(x.ten?'<span class="dot"></span>':'')+'</div>';
+  }
+  $("wkDays").innerHTML=html;
+  // Ngày lễ sắp tới (trong 400 ngày), kèm Rằm / Mùng Một gần nhất
+  var next=null, ram=null;
+  for(var j=0;j<400 && !(next&&ram);j++){
+    var dd=new Date(now.getFullYear(), now.getMonth(), now.getDate()+j), y=leCuaNgay(dd);
+    if(!next && y.ten) next={ten:y.ten, n:j, d:dd};
+    if(!ram && j>0 && (y.L.day===1||y.L.day===15)) ram={ten:y.L.day===1?"Mùng Một":"Rằm", n:j};
+  }
+  var t="";
+  if(next) t += next.n===0 ? "🎉 Hôm nay: <b>"+esc(next.ten)+"</b>" : "📅 Sắp tới: <b>"+esc(next.ten)+"</b> ("+next.d.getDate()+"/"+(next.d.getMonth()+1)+") – còn "+next.n+" ngày";
+  if(ram) t += " &nbsp;·&nbsp; 🌕 "+ram.ten+" sau "+ram.n+" ngày";
+  $("wkNext").innerHTML=t;
+}
+
 function applyTitle(){ $("customTitle").textContent = cfg.title||""; }
 applyTitle();
 
@@ -855,7 +918,7 @@ var pendingBgData=null, lastFocusBeforeSettings=null;
 function openSettings(){
   lastFocusBeforeSettings=current;
   $("sTitle").value=cfg.title||""; $("sBgUrl").value=cfg.bgData?"":(cfg.bgUrl||"");
-  $("sLoc").value=cfg.loc; $("sUnit").value=cfg.unit; $("sSjc").value=cfg.sjcUrl||""; $("sAiUrl").value=cfg.aiUrl||""; $("sAiToken").value=cfg.aiToken||""; $("sAiSpeak").value=cfg.aiSpeak===false?"0":"1"; sel.value=""; $("sBgFile").value=""; pendingBgData=null;
+  $("sLoc").value=cfg.loc; $("sUnit").value=cfg.unit; $("sSjc").value=cfg.sjcUrl||""; $("sAiUrl").value=cfg.aiUrl||""; $("sAiToken").value=cfg.aiToken||""; $("sAiSpeak").value=cfg.aiSpeak===false?"0":"1"; $("sWeek").value=cfg.showWeek===false?"0":"1"; sel.value=""; $("sBgFile").value=""; pendingBgData=null;
   renderAppList(); $("sCName").value=""; $("sCPkg").value=""; loadInstalled();
   $("settings").classList.add("open");
   setFocus($("sTitle"));
@@ -873,7 +936,7 @@ function saveSettings(){
   if(pendingBgData){ cfg.bgData=pendingBgData; }
   else if(sel.value!==""){ cfg.bgUrl=BG_PRESETS[+sel.value].url; cfg.bgData=""; }
   else if(url){ cfg.bgUrl=url; cfg.bgData=""; }
-  cfg.loc=$("sLoc").value; cfg.unit=$("sUnit").value; cfg.sjcUrl=$("sSjc").value.trim(); cfg.aiUrl=$("sAiUrl").value.trim(); cfg.aiToken=$("sAiToken").value.trim(); cfg.aiSpeak=$("sAiSpeak").value==="1";
+  cfg.loc=$("sLoc").value; cfg.unit=$("sUnit").value; cfg.sjcUrl=$("sSjc").value.trim(); cfg.aiUrl=$("sAiUrl").value.trim(); cfg.aiToken=$("sAiToken").value.trim(); cfg.aiSpeak=$("sAiSpeak").value==="1"; cfg.showWeek=$("sWeek").value==="1"; renderWeek();
   if(save()){
     applyTitle(); applyBg();
     if(oldLoc!==cfg.loc||oldUnit!==cfg.unit) loadWeather(); loadMarkets();
