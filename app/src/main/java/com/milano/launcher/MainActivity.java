@@ -61,6 +61,9 @@ public class MainActivity extends Activity {
     private String pendingGeoOrigin;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
+    /** Máy chủ Karaoke chạy trong app (điện thoại quét QR để chọn bài). Giữ chung cho cả tiến trình. */
+    private static KaraokeServer karaoke;
+
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +99,24 @@ public class MainActivity extends Activity {
         else web.loadUrl(BuildConfig.LAUNCHER_URL);
 
         askStartPermissions();
+        startKaraoke();
+    }
+
+    /* ---------------- Karaoke ---------------- */
+
+    private synchronized KaraokeServer karaoke() {
+        if (karaoke == null) {
+            final android.content.Context app = getApplicationContext();
+            karaoke = new KaraokeServer(name -> app.getAssets().open(name), app.getFilesDir(), "KARAOKE");
+        }
+        return karaoke;
+    }
+
+    /** Mở cổng 8686 ở luồng nền để điện thoại vào được ngay khi launcher chạy. */
+    private void startKaraoke() {
+        new Thread(() -> {
+            try { karaoke().start(8686); } catch (Exception ignored) { }
+        }, "karaoke-start").start();
     }
 
     /* ---------------- Quyền micro + vị trí ---------------- */
@@ -330,6 +351,18 @@ public class MainActivity extends Activity {
             return arr.toString();
         }
 
+        /** Địa chỉ trang Karaoke trên TV (tự bật máy chủ nếu chưa chạy). */
+        @JavascriptInterface
+        public String karaokeUrl() {
+            try {
+                KaraokeServer k = karaoke();
+                k.start(8686);
+                return k.localTvUrl();
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
         @JavascriptInterface
         public String version() {
             return BuildConfig.VERSION_NAME;
@@ -344,6 +377,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Trang đang mở có phải launcher (bản web hoặc bản đi kèm) không. */
+    private boolean onLauncher() {
+        String u = web.getUrl();
+        if (u == null) return true;
+        String home = BuildConfig.LAUNCHER_URL.replaceAll("/+$", "");
+        return u.startsWith(home) || u.startsWith(FALLBACK);
+    }
+
+    private void goHome() {
+        runOnUiThread(() -> {
+            onFallback = false;
+            web.loadUrl(BuildConfig.LAUNCHER_URL);
+        });
+    }
+
     /* ---------------- Phím remote, vòng đời ---------------- */
 
     @Override
@@ -351,7 +399,10 @@ public class MainActivity extends Activity {
         // Launcher là màn hình Home: nút Back không thoát app, chỉ đóng bảng đang mở trên trang
         if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
             if (event.getAction() == KeyEvent.ACTION_UP) {
-                web.evaluateJavascript("(window.milanoBack && window.milanoBack()) ? 1 : 0", null);
+                web.evaluateJavascript("(window.milanoBack && window.milanoBack()) ? 1 : 0", handled -> {
+                    // Đang ở trang khác (vd. Karaoke) và trang không tự xử lý Back: quay về launcher
+                    if (!"1".equals(handled) && !onLauncher()) goHome();
+                });
             }
             return true;
         }
@@ -361,8 +412,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        // Bấm Home khi đang ở launcher: đóng bảng cài đặt / Hỏi AI nếu đang mở
-        if (web != null) web.evaluateJavascript("window.milanoHome && window.milanoHome()", null);
+        // Bấm Home: đang ở trang khác (vd. Karaoke) thì về launcher, còn không thì đóng bảng đang mở
+        if (web == null) return;
+        if (!onLauncher()) goHome();
+        else web.evaluateJavascript("window.milanoHome && window.milanoHome()", null);
     }
 
     @Override

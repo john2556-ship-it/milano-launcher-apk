@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Karaoke · Chọn bài</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:rgba(255,255,255,.05); --line:rgba(255,255,255,.12);
+    --text:#eef1f8; --dim:#9aa3b8; --accent:#ff5d8f; --accent2:#7c5cff; --ok:#3ddc97;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#1c2350 0,transparent 60%),var(--bg);
+       color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       padding:calc(env(safe-area-inset-top) + 18px) 16px calc(env(safe-area-inset-bottom) + 40px)}
+  h1{margin:0;font-size:34px;font-weight:900;letter-spacing:-.5px}
+  .sub{color:var(--dim);margin-top:2px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px;margin-top:14px;
+        backdrop-filter:blur(12px)}
+  input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);
+        border-radius:999px;padding:14px 18px;font-size:17px;outline:none}
+  input:focus{border-color:var(--accent2)}
+  button{font:inherit;color:var(--text);background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.04));
+         border:1px solid var(--line);border-radius:999px;padding:12px 16px;font-weight:700;cursor:pointer}
+  button:active{transform:scale(.97)}
+  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none}
+  .row{display:flex;gap:10px;margin-top:10px}
+  .row>*{flex:1}
+  .chk{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:14px;margin:10px 4px 0}
+  .chk input{width:auto}
+  /* now playing */
+  .np{display:flex;gap:12px;align-items:center}
+  .np img{width:96px;height:54px;border-radius:10px;object-fit:cover;background:#222}
+  .np .t{font-weight:800;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .np .s{color:var(--dim);font-size:13px;margin-top:2px}
+  .ctrls{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+  .ctrls button{padding:12px 0;font-size:18px}
+  .vol{color:var(--dim);font-size:12px;text-align:center;margin-top:6px}
+  /* lists */
+  .sec{display:flex;justify-content:space-between;align-items:center;font-weight:800;text-transform:uppercase;
+       letter-spacing:.4px;font-size:15px;cursor:pointer;user-select:none}
+  .sec .n{color:var(--dim);font-weight:600}
+  .item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+  .item:first-child{border-top:none}
+  .item img{width:80px;height:45px;border-radius:8px;object-fit:cover;flex:none;background:#222}
+  .item .info{flex:1;min-width:0}
+  .item .t{font-size:14px;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .item .m{font-size:12px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .acts{display:flex;gap:6px;flex:none}
+  .item .acts button{padding:8px 11px;font-size:14px}
+  .num{width:22px;color:var(--dim);font-weight:800;text-align:center;flex:none}
+  .empty{color:var(--dim);text-align:center;padding:14px 0;font-size:14px}
+  .hide{display:none!important}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%) translateY(120px);
+         background:#1b2142;border:1px solid var(--line);padding:12px 18px;border-radius:16px;max-width:90vw;
+         transition:transform .25s;z-index:9;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  #conn{position:fixed;top:0;left:0;right:0;background:#b3261e;text-align:center;font-size:13px;padding:4px;z-index:10}
+  .me{display:flex;align-items:center;gap:8px;margin-top:12px}
+  .me input{padding:10px 14px;font-size:15px}
+  .me span{color:var(--dim);font-size:13px;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="conn" class="hide">Mất kết nối với TV, đang thử lại… (TV cần đang mở Milano Launcher)</div>
+<div id="noToken" class="card hide" style="text-align:center;border-color:#ff5d8f">🔒 Hãy quét lại mã QR trên TV để điều khiển</div>
+
+<h1 id="appName">KARAOKE</h1>
+<div class="sub">Chọn bài · Hát trên TV</div>
+<div class="me"><span>Tên bạn:</span><input id="singer" placeholder="(tuỳ chọn) để hiện trên TV" maxlength="30"></div>
+
+<!-- Đang hát -->
+<div class="card">
+  <div class="np">
+    <img id="npThumb" alt="">
+    <div style="min-width:0">
+      <div class="s">ĐANG HÁT</div>
+      <div class="t" id="npTitle">Chưa có bài</div>
+      <div class="s" id="npSinger"></div>
+    </div>
+  </div>
+  <div class="ctrls">
+    <button data-cmd="restart" title="Hát lại từ đầu">↺</button>
+    <button data-cmd="toggle" id="btnToggle" title="Tạm dừng / Tiếp tục">⏸</button>
+    <button data-cmd="skip" title="Bỏ qua bài">⏭</button>
+    <button data-vol="-10" title="Nhỏ lại">🔉</button>
+    <button data-vol="10" title="To lên">🔊</button>
+  </div>
+  <div class="vol" id="volTxt">Âm lượng 80%</div>
+</div>
+
+<!-- Tìm bài -->
+<div class="card">
+  <input id="q" placeholder="Tên bài hát, ca sĩ…" enterkeyhint="search" autocomplete="off">
+  <div class="row">
+    <button class="primary" id="btnSearch">Tìm bài</button>
+    <button id="btnTvSearch">Tìm trên TV</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="kOnly" checked> Chỉ tìm bản karaoke</label>
+</div>
+
+<div class="card" id="resCard">
+  <div class="sec" data-toggle="results">Kết quả tìm kiếm <span class="n" id="resN">+</span></div>
+  <div id="results" class="hide"></div>
+</div>
+
+<!-- Thêm bằng link -->
+<div class="card">
+  <div class="sec" data-toggle="linkBox">Thêm bằng link YouTube <span class="n">+</span></div>
+  <div id="linkBox" class="hide">
+    <input id="link" placeholder="https://youtu.be/…" style="margin-top:12px" autocomplete="off">
+    <input id="linkTitle" placeholder="Tên bài (tuỳ chọn)" style="margin-top:10px">
+    <div class="row"><button class="primary" id="btnLink">Thêm vào hàng chờ</button></div>
+  </div>
+</div>
+
+<!-- Hàng chờ -->
+<div class="card">
+  <div class="sec"><span>Danh sách chờ</span><span class="n" id="qN">0</span></div>
+  <div id="queue"></div>
+  <div class="row hide" id="clearRow"><button id="btnClear">Xoá hết hàng chờ</button></div>
+</div>
+
+<!-- Đã hát -->
+<div class="card">
+  <div class="sec" data-toggle="history">Đã hát <span class="n">+</span></div>
+  <div id="history" class="hide"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let state = null, results = [];
+
+// ---- tên người hát nhớ trong máy ----
+$('singer').value = localStorage.getItem('singer') || '';
+$('singer').oninput = e => localStorage.setItem('singer', e.target.value);
+const singer = () => $('singer').value.trim();
+
+// ---- Mã truy cập (token) lấy từ mã QR, nhớ lại trong máy ----
+const TOKEN = new URLSearchParams(location.search).get('t') || localStorage.getItem('karaoke_t') || '';
+if (TOKEN) localStorage.setItem('karaoke_t', TOKEN);
+const api = p => p + (p.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(TOKEN);
+function noToken() { $('noToken').classList.remove('hide'); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+fetch(api('/api/info')).then(r => r.json()).then(i => { if (i.name) { $('appName').textContent = i.name; document.title = i.name; } }).catch(()=>{});
+
+// ---- Gửi lệnh lên TV ----
+async function send(m) {
+  try {
+    const r = await fetch(api('/api/cmd'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(m) });
+    if (r.status === 403) return noToken();
+    const j = await r.json();
+    if (j.error) toast(j.error);
+  } catch (_) { toast('Không gửi được, kiểm tra Wi-Fi'); }
+}
+
+// ---- Nhận cập nhật từ TV (long-poll) ----
+let since = -1, polling = false;
+async function poll() {
+  if (polling) return;
+  polling = true;
+  while (true) {
+    try {
+      const r = await fetch(api('/api/poll?role=remote&since=' + since), { cache: 'no-store' });
+      if (r.status === 403) { noToken(); break; }
+      const j = await r.json();
+      $('conn').classList.add('hide');
+      since = j.seq; state = j.state; render();
+      (j.events || []).forEach(m => { if (m.type === 'toast') toast(m.msg); });
+    } catch (_) {
+      $('conn').classList.remove('hide');
+      await sleep(2000);
+    }
+  }
+  polling = false;
+}
+poll();
+// Điện thoại khoá màn hình rồi mở lại: lấy trạng thái mới ngay
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { since = -1; poll(); } });
+
+let tt;
+function toast(msg) { $('toast').textContent = msg; $('toast').classList.add('show'); clearTimeout(tt); tt = setTimeout(() => $('toast').classList.remove('show'), 2600); }
+
+// ---- render ----
+function render() {
+  const c = state.current;
+  $('npTitle').textContent = c ? c.title : 'Chưa có bài — chọn bài bên dưới';
+  $('npSinger').textContent = c && c.singer ? '🎤 ' + c.singer : '';
+  $('npThumb').src = c ? c.thumb : '';
+  $('npThumb').style.visibility = c ? 'visible' : 'hidden';
+  $('btnToggle').textContent = state.paused ? '▶️' : '⏸';
+  $('volTxt').textContent = 'Âm lượng ' + state.volume + '%';
+
+  $('qN').textContent = state.queue.length;
+  $('clearRow').classList.toggle('hide', state.queue.length < 2);
+  $('queue').innerHTML = state.queue.length ? state.queue.map((x, i) => `
+    <div class="item">
+      <div class="num">${i + 1}</div>
+      <img src="${esc(x.thumb)}" loading="lazy" alt="">
+      <div class="info"><div class="t">${esc(x.title)}</div><div class="m">${[x.singer ? '🎤 ' + esc(x.singer) : '', esc(x.duration)].filter(Boolean).join(' · ')}</div></div>
+      <div class="acts">
+        ${i > 0 ? `<button data-move="top" data-id="${x.id}" title="Ưu tiên lên đầu">⤒</button>` : ''}
+        <button data-remove="${x.id}" title="Xoá">✕</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Hàng chờ trống</div>';
+
+  $('history').innerHTML = state.history.length ? state.history.map(x => `
+    <div class="item">
+      <img src="${esc(x.thumb)}" loading="lazy" alt="">
+      <div class="info"><div class="t">${esc(x.title)}</div><div class="m">${x.singer ? '🎤 ' + esc(x.singer) : ''}</div></div>
+      <div class="acts"><button data-readd="${x.id}">+ Hát lại</button></div>
+    </div>`).join('') : '<div class="empty">Chưa hát bài nào</div>';
+}
+
+function renderResults() {
+  const box = $('results');
+  box.classList.remove('hide'); $('resN').textContent = '−';
+  box.innerHTML = results.length ? results.map((x, i) => `
+    <div class="item">
+      <img src="${esc(x.thumb)}" loading="lazy" alt="">
+      <div class="info"><div class="t">${esc(x.title)}</div><div class="m">${[esc(x.duration), esc(x.channel)].filter(Boolean).join(' · ')}</div></div>
+      <div class="acts">
+        <button data-add="${i}" title="Thêm vào cuối hàng chờ">＋</button>
+        <button data-add="${i}" data-next="1" title="Hát kế tiếp">⚡</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Không thấy bài nào</div>';
+}
+
+// ---- tìm bài ----
+async function doSearch() {
+  const q = $('q').value.trim();
+  if (!q) return $('q').focus();
+  $('q').blur();
+  $('results').classList.remove('hide');
+  $('results').innerHTML = '<div class="empty">Đang tìm…</div>';
+  try {
+    const r = await fetch(api('/api/search?k=' + ($('kOnly').checked ? 1 : 0) + '&q=' + encodeURIComponent(q)));
+    if (r.status === 403) { noToken(); throw 0; }
+    if (!r.ok) throw 0;
+    results = await r.json();
+    renderResults();
+    $('resCard').scrollIntoView({ behavior: 'smooth' });
+  } catch (_) { $('results').innerHTML = '<div class="empty">Lỗi tìm kiếm, thử lại</div>'; }
+}
+$('btnSearch').onclick = doSearch;
+$('q').onkeydown = e => { if (e.key === 'Enter') doSearch(); };
+$('btnTvSearch').onclick = () => {
+  const q = $('q').value.trim();
+  if (!q) return $('q').focus();
+  send({ type: 'tvSearch', q, k: $('kOnly').checked });
+  toast('📺 Đã gửi tìm kiếm lên TV');
+};
+
+$('btnLink').onclick = () => {
+  const url = $('link').value.trim();
+  if (!url) return $('link').focus();
+  send({ type: 'addLink', url, title: $('linkTitle').value.trim(), singer: singer() });
+  $('link').value = ''; $('linkTitle').value = '';
+};
+$('btnClear').onclick = () => { if (confirm('Xoá hết hàng chờ?')) send({ type: 'clear' }); };
+
+// ---- click delegation ----
+document.addEventListener('click', e => {
+  const b = e.target.closest('button, .sec[data-toggle]');
+  if (!b) return;
+  const d = b.dataset;
+  if (d.toggle) {
+    const el = $(d.toggle); el.classList.toggle('hide');
+    const n = b.querySelector('.n'); if (n && d.toggle !== 'results') n.textContent = el.classList.contains('hide') ? '+' : '−';
+    if (d.toggle === 'results') $('resN').textContent = el.classList.contains('hide') ? '+' : '−';
+  }
+  else if (d.cmd) send({ type: d.cmd });
+  else if (d.vol) send({ type: 'volume', delta: +d.vol });
+  else if (d.add !== undefined) {
+    send({ type: 'add', item: results[+d.add], singer: singer(), next: !!d.next });
+    b.textContent = '✓'; setTimeout(() => b.textContent = d.next ? '⚡' : '＋', 1200);
+  }
+  else if (d.remove) send({ type: 'remove', id: d.remove });
+  else if (d.move) send({ type: 'move', id: d.id, dir: d.move });
+  else if (d.readd) send({ type: 'readd', id: d.readd, singer: singer() });
+});
+</script>
+</body>
+</html>

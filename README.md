@@ -13,6 +13,9 @@ https://github.com/john2556-ship-it/milano-launcher-apk/releases/latest/download
 - Đăng ký làm Home: dùng TiviKit → Quản lý launcher → chọn Milano Launcher
 - Cầu nối JavaScript `MilanoApp`: `openApp(pkg)`, `openIntent(uri)`, `speak(text, lang)`, `stopSpeak()`, `getApps()`, `version()`, `reload()`
 - Nút Back không thoát app, chỉ đóng bảng đang mở
+- **Karaoke ngay trên TV (không cần NAS):** app tự mở máy chủ ở cổng 8686. Bấm thẻ Karaoke → TV hiện mã QR,
+  điện thoại quét mã để tìm bài YouTube, xếp hàng chờ, dừng/bỏ bài, chỉnh âm lượng. Mã QR có token nên chỉ ai
+  quét mã mới điều khiển được. Trang web nằm trong `app/src/main/assets/karaoke/`, máy chủ ở `KaraokeServer.java`.
 
 ## Build
 GitHub Actions tự build mỗi lần push lên `main`, ký bằng `keystore/milano-release.p12`

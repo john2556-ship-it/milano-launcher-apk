@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script src="/qrcode.js"></script>
+<title>Karaoke · TV</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#000;color:#eef1f8;overflow:hidden;
+            font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
+  #player{position:fixed;inset:0;width:100vw;height:100vh;border:0}
+  .hide{display:none!important}
+
+  /* Màn hình chờ */
+  #idle{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:6vw;
+        background:radial-gradient(900px 500px at 75% 10%,#2a2a6e 0,transparent 60%),
+                   radial-gradient(700px 500px at 10% 90%,#5a1d4a 0,transparent 60%),#0b1020;z-index:2}
+  #idle h1{font-size:7vw;margin:0;font-weight:900;letter-spacing:-2px;
+           background:linear-gradient(135deg,#ff5d8f,#ffd36e,#7c5cff);-webkit-background-clip:text;color:transparent}
+  #idle p{font-size:2.2vw;color:#b9c0d4;margin:1vw 0 0}
+  #idle .url{font-size:1.6vw;color:#7f89a6;margin-top:2vw}
+  #idle .qr{background:#fff;padding:1.2vw;border-radius:2vw;width:24vw;height:24vw;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .qr svg{width:100%;height:100%;display:block}
+
+  /* Góc QR + bài tiếp theo */
+  #corner{position:fixed;right:1.5vw;top:1.5vw;z-index:3;display:flex;gap:1vw;align-items:flex-start;
+          transition:opacity .4s}
+  #corner .qr{background:#fff;padding:.4vw;border-radius:.8vw;width:7vw;height:7vw}
+  #nextBox{background:rgba(10,14,30,.78);border:1px solid rgba(255,255,255,.15);border-radius:1vw;
+           padding:.8vw 1.2vw;max-width:28vw;font-size:1.15vw;backdrop-filter:blur(8px)}
+  #nextBox b{color:#ffd36e}
+  #nextBox .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.2vw}
+
+  /* Banner tên bài lúc bắt đầu */
+  #banner{position:fixed;left:2vw;bottom:3vw;z-index:3;background:rgba(10,14,30,.82);border-left:.5vw solid #ff5d8f;
+          padding:1.2vw 2vw;border-radius:1vw;max-width:70vw;transition:opacity .6s, transform .6s}
+  #banner .t{font-size:2.2vw;font-weight:800}
+  #banner .s{font-size:1.5vw;color:#ffd36e;margin-top:.3vw}
+  #banner.out{opacity:0;transform:translateY(2vw)}
+
+  #toast{position:fixed;left:50%;top:2vw;transform:translateX(-50%);z-index:6;background:rgba(20,26,60,.92);
+         border:1px solid rgba(255,255,255,.2);padding:1vw 2vw;border-radius:1.2vw;font-size:1.5vw;
+         transition:opacity .4s;opacity:0;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #toast.show{opacity:1}
+
+  /* Màn bắt đầu (cần 1 lần bấm OK để TV cho phép phát tiếng) */
+  #start{position:fixed;inset:0;z-index:9;background:rgba(5,8,20,.92);display:flex;flex-direction:column;
+         align-items:center;justify-content:center;font-size:2.4vw}
+  #start button{font-size:2.4vw;padding:1.2vw 4vw;border-radius:99px;border:none;margin-top:2vw;color:#fff;
+                background:linear-gradient(135deg,#ff5d8f,#7c5cff);font-weight:800}
+  #start button:focus{outline:.3vw solid #fff;outline-offset:.4vw}
+
+  /* Tìm trên TV */
+  #tvs{position:fixed;inset:0;z-index:7;background:rgba(5,8,20,.95);padding:3vw 4vw}
+  #tvs h2{margin:0 0 1.5vw;font-size:2.4vw}
+  #tvs h2 small{color:#9aa3b8;font-weight:400;font-size:1.4vw;margin-left:1vw}
+  #tvsGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.4vw;max-height:80vh;overflow:hidden}
+  .res{border-radius:1vw;overflow:hidden;background:rgba(255,255,255,.06);border:.25vw solid transparent;transition:transform .15s}
+  .res img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+  .res .t{padding:.7vw .9vw;font-size:1.15vw;line-height:1.3;height:4.2vw;overflow:hidden}
+  .res .d{padding:0 .9vw .7vw;font-size:1vw;color:#9aa3b8}
+  .res.focus{border-color:#ffd36e;transform:scale(1.04);background:rgba(255,255,255,.12)}
+  .res.added{border-color:#3ddc97}
+</style>
+</head>
+<body>
+
+<div id="player"></div>
+
+<div id="idle">
+  <div>
+    <h1 id="appName">KARAOKE</h1>
+    <p>Quét mã bằng điện thoại để chọn bài 🎤</p>
+    <div class="url" id="idleUrl"></div>
+  </div>
+  <div class="qr" id="qrBig"></div>
+</div>
+
+<div id="corner" class="hide">
+  <div id="nextBox"></div>
+  <div class="qr" id="qrSmall"></div>
+</div>
+
+<div id="banner" class="out"><div class="t" id="bTitle"></div><div class="s" id="bSinger"></div></div>
+<div id="toast"></div>
+
+<div id="tvs" class="hide">
+  <h2>Kết quả: <span id="tvsQ"></span><small>◀ ▶ ▲ ▼ chọn · OK thêm bài · Back để đóng</small></h2>
+  <div id="tvsGrid"></div>
+</div>
+
+<div id="start">
+  <div>🎤 Karaoke đã sẵn sàng</div>
+  <button id="startBtn">Bấm OK để bắt đầu</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let state = null, player = null, ytReady = false, started = false, loadedId = null;
+
+// Mã QR cho điện thoại (có token), vẽ ngay trên TV
+function drawQr(url) {
+  const q = qrcode(0, 'M'); q.addData(url); q.make();
+  const svg = q.createSvgTag(4, 0);
+  $('qrBig').innerHTML = svg; $('qrSmall').innerHTML = svg;
+}
+function loadInfo() {
+  fetch('/api/info').then(r => r.json()).then(i => {
+    $('appName').textContent = i.name;
+    $('idleUrl').textContent = i.remoteUrl.replace(/\?t=.*/, '');
+    drawQr(i.remoteUrl);
+  }).catch(() => setTimeout(loadInfo, 3000));
+}
+loadInfo();
+setInterval(loadInfo, 5 * 60 * 1000);   // đổi Wi-Fi / IP thì mã QR tự cập nhật
+
+// ---------- Bắt đầu (1 lần bấm cho phép tự phát có tiếng) ----------
+$('startBtn').focus();
+function begin() {
+  if (started) return;
+  started = true;
+  $('start').classList.add('hide');
+  sync();
+}
+$('startBtn').onclick = begin;
+// Trong app Milano Launcher thì TV đã cho phép tự phát có tiếng: bỏ qua màn "Bấm OK"
+if (/MilanoLauncher/.test(navigator.userAgent)) begin();
+// Nút Back của Milano Launcher: đóng bảng tìm trên TV trước, không có gì để đóng thì về launcher
+window.milanoBack = () => {
+  if (!$('tvs').classList.contains('hide')) { closeTvSearch(); return true; }
+  return false;
+};
+
+// ---------- YouTube IFrame API ----------
+const tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(tag);
+
+window.onYouTubeIframeAPIReady = () => {
+  player = new YT.Player('player', {
+    width: '100%', height: '100%',
+    playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, iv_load_policy: 3, fs: 0, disablekb: 1 },
+    events: {
+      onReady: () => { ytReady = true; sync(); },
+      onStateChange: e => {
+        if (e.data === YT.PlayerState.ENDED && state?.current) send({ type: 'ended', id: state.current.id });
+        if (e.data === YT.PlayerState.PLAYING) send({ type: 'status', paused: false });
+        if (e.data === YT.PlayerState.PAUSED) send({ type: 'status', paused: true });
+      },
+      onError: e => { if (state?.current) send({ type: 'error', id: state.current.id, code: e.data }); }
+    }
+  });
+};
+
+function sync() {
+  if (!state) return;
+  const c = state.current;
+  $('idle').classList.toggle('hide', !!c);
+  $('corner').classList.toggle('hide', !c);
+  renderNext();
+  if (!ytReady || !started) return;
+  player.setVolume(state.volume);
+  if (!c) { if (loadedId) { player.stopVideo(); loadedId = null; } return; }
+  if (loadedId !== c.id) {
+    loadedId = c.id;
+    player.loadVideoById(c.videoId);
+    showBanner(c);
+  }
+}
+
+function renderNext() {
+  const q = state.queue.slice(0, 3);
+  $('nextBox').innerHTML = q.length
+    ? '<b>Bài tiếp theo</b>' + q.map((x, i) => `<div class="row">${i + 1}. ${esc(x.title)}${x.singer ? ' — 🎤 ' + esc(x.singer) : ''}</div>`).join('')
+    : '<b>Hàng chờ trống</b><div class="row">Quét mã để thêm bài</div>';
+}
+
+let bt;
+function showBanner(c) {
+  $('bTitle').textContent = c.title;
+  $('bSinger').textContent = c.singer ? '🎤 ' + c.singer : '';
+  $('banner').classList.remove('out');
+  $('corner').style.opacity = 1;
+  clearTimeout(bt);
+  bt = setTimeout(() => { $('banner').classList.add('out'); $('corner').style.opacity = .55; }, 9000);
+}
+
+let tt;
+function toast(msg) { $('toast').textContent = msg; $('toast').classList.add('show'); clearTimeout(tt); tt = setTimeout(() => $('toast').classList.remove('show'), 3500); }
+
+// ---------- Đồng bộ với máy chủ trong app (long-poll) ----------
+const send = m => fetch('/api/cmd', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(m) }).catch(() => {});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let since = -1;
+(async function poll() {
+  while (true) {
+    try {
+      const r = await fetch('/api/poll?role=tv&since=' + since, { cache: 'no-store' });
+      const j = await r.json();
+      since = j.seq; state = j.state; sync();
+      (j.events || []).forEach(onEvent);
+    } catch (_) { await sleep(2000); }
+  }
+})();
+function onEvent(m) {
+    if (m.type === 'toast') toast(m.msg);
+    else if (m.type === 'cmd' && ytReady) {
+      if (m.cmd === 'toggle') player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo();
+      if (m.cmd === 'restart') { player.seekTo(0, true); player.playVideo(); }
+      if (m.cmd === 'volume') { player.setVolume(m.value); toast('🔊 Âm lượng ' + m.value + '%'); }
+    }
+    else if (m.type === 'tvSearch') openTvSearch(m);
+    else if (m.type === 'tvSearchClose') closeTvSearch();
+}
+
+// ---------- Tìm trên TV (điều khiển bằng remote TV) ----------
+let tvRes = [], focusIdx = 0, tvsTimer;
+function openTvSearch(m) {
+  $('tvs').classList.remove('hide');
+  $('tvsQ').textContent = m.q;
+  if (m.loading) { $('tvsGrid').innerHTML = '<div style="font-size:1.6vw;color:#9aa3b8">Đang tìm…</div>'; return; }
+  tvRes = (m.results || []).slice(0, 12);
+  focusIdx = 0;
+  $('tvsGrid').innerHTML = tvRes.length ? tvRes.map((x, i) => `
+    <div class="res" data-i="${i}"><img src="${esc(x.thumb)}"><div class="t">${esc(x.title)}</div><div class="d">${esc(x.duration)} · ${esc(x.channel)}</div></div>`).join('')
+    : '<div style="font-size:1.6vw;color:#9aa3b8">Không thấy bài nào</div>';
+  paintFocus();
+  armAutoClose();
+}
+function closeTvSearch() { $('tvs').classList.add('hide'); clearTimeout(tvsTimer); }
+function armAutoClose() { clearTimeout(tvsTimer); tvsTimer = setTimeout(closeTvSearch, 60000); }
+function paintFocus() {
+  document.querySelectorAll('.res').forEach((el, i) => el.classList.toggle('focus', i === focusIdx));
+}
+$('tvsGrid').addEventListener('click', e => {
+  const r = e.target.closest('.res'); if (!r) return;
+  focusIdx = +r.dataset.i; addFocused();
+});
+function addFocused() {
+  const x = tvRes[focusIdx]; if (!x) return;
+  send({ type: 'add', item: x, singer: '' });
+  document.querySelectorAll('.res')[focusIdx]?.classList.add('added');
+}
+
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  if (!started) { if (k === 'Enter' || k === ' ') { e.preventDefault(); begin(); } return; }
+
+  if (!$('tvs').classList.contains('hide')) {
+    const cols = 4, n = tvRes.length;
+    armAutoClose();
+    if (k === 'ArrowRight') focusIdx = Math.min(n - 1, focusIdx + 1);
+    else if (k === 'ArrowLeft') focusIdx = Math.max(0, focusIdx - 1);
+    else if (k === 'ArrowDown') focusIdx = Math.min(n - 1, focusIdx + cols);
+    else if (k === 'ArrowUp') focusIdx = Math.max(0, focusIdx - cols);
+    else if (k === 'Enter') addFocused();
+    else if (k === 'Escape' || k === 'Backspace' || k === 'GoBack' || k === 'BrowserBack') closeTvSearch();
+    else return;
+    e.preventDefault(); paintFocus(); return;
+  }
+
+  // Phím remote khi đang hát
+  if (k === 'Enter' || k === 'MediaPlayPause' || k === ' ') { send({ type: 'toggle' }); e.preventDefault(); }
+  else if (k === 'MediaTrackNext' || k === 'MediaFastForward') send({ type: 'skip' });
+  else if (k === 'MediaRewind' || k === 'MediaTrackPrevious') send({ type: 'restart' });
+  else if (k === 'ArrowUp') send({ type: 'volume', delta: 10 });
+  else if (k === 'ArrowDown') send({ type: 'volume', delta: -10 });
+});
+</script>
+</body>
+</html>
