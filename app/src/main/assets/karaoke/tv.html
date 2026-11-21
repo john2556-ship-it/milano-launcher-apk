@@ -200,8 +200,17 @@ $('startBtn').focus();
 function jingle() {
   try {
     const A = new (window.AudioContext || window.webkitAudioContext)();
+    const play = () => { if (!A._played) { A._played = true; jingleOn(A, A.currentTime + 0.05); } };
+    // Có máy TV để âm thanh ở trạng thái tạm dừng lúc đầu: bật lại rồi mới phát
+    if (A.state === 'suspended') {
+      A.resume().then(play).catch(() => {});
+      document.addEventListener('keydown', () => A.resume().then(play), { once: true });
+    } else play();
+  } catch (_) { }
+}
+function jingleOn(A, t0) {
+  {
     const out = A.createGain(); out.gain.value = 0.22; out.connect(A.destination);
-    const t0 = A.currentTime + 0.05;
     const tone = (f, t, d, type = 'triangle', v = 1) => {
       const o = A.createOscillator(), g = A.createGain();
       o.type = type; o.frequency.value = f;
@@ -229,7 +238,7 @@ function jingle() {
     [523, 659, 784, 1047].forEach(f => tone(f, hit, 1.6, 'sawtooth', 0.28));
     [262, 392].forEach(f => tone(f, hit, 1.8, 'triangle', 0.6));
     tone(1319, hit + 0.45, 0.6, 'square', 0.25); tone(1568, hit + 0.7, 0.9, 'square', 0.25);
-  } catch (_) { }
+  }
 }
 
 let introPlaying = false;
