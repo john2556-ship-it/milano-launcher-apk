@@ -86,7 +86,11 @@
   /* Góc QR + bài tiếp theo */
   #corner{position:fixed;right:1.5vw;top:1.5vw;z-index:3;display:flex;gap:1vw;align-items:flex-start;
           transition:opacity .4s}
-  #corner .qr{background:#fff;padding:.4vw;border-radius:.8vw;width:7vw;height:7vw}
+  /* Mã QR khi đang hát: giữa cạnh phải (tránh logo kênh ở góc trên và lời bài hát ở dưới), luôn rõ nét */
+  #qrFloat{position:fixed;right:1.2vw;top:50%;transform:translateY(-50%);z-index:3;text-align:center;
+           background:rgba(10,14,30,.8);border:1px solid rgba(255,255,255,.18);border-radius:1vw;padding:.5vw .5vw .6vw}
+  #qrFloat .qr{background:#fff;padding:.35vw;border-radius:.6vw;width:6.5vw;height:6.5vw}
+  #qrFloat .cap{font-size:.85vw;line-height:1.25;color:#d6dcf0;margin-top:.4vw;font-weight:700}
   #nextBox{background:rgba(10,14,30,.78);border:1px solid rgba(255,255,255,.15);border-radius:1vw;
            padding:.8vw 1.2vw;max-width:28vw;font-size:1.15vw;backdrop-filter:blur(8px)}
   #nextBox b{color:#ffd36e}
@@ -94,7 +98,7 @@
 
   /* Banner tên bài lúc bắt đầu */
   /* Dải chữ chạy trên cùng: ai đang hát bài gì (hiện suốt bài) */
-  #ticker{position:fixed;left:1.5vw;right:39vw;top:1.5vw;z-index:3;height:3.6vw;overflow:hidden;border-radius:99px;
+  #ticker{position:fixed;left:1.5vw;right:31vw;top:1.5vw;z-index:3;height:3.6vw;overflow:hidden;border-radius:99px;
           background:rgba(10,14,30,.72);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);
           -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 3%,#000 97%,transparent 100%)}
   #ticker .run{display:inline-flex;white-space:nowrap;height:100%;align-items:center;animation:tick linear infinite}
@@ -156,8 +160,8 @@
 
 <div id="corner" class="hide">
   <div id="nextBox"></div>
-  <div class="qr" id="qrSmall"></div>
 </div>
+<div id="qrFloat" class="hide"><div class="qr" id="qrSmall"></div><div class="cap">Quét để<br>chọn bài</div></div>
 
 <div id="ticker" class="hide"><div class="run" id="tickRun"></div></div>
 <div id="banner" class="out"><div class="t" id="bTitle"></div><div class="s" id="bSinger"></div></div>
@@ -255,7 +259,7 @@ function begin() {
   if (started || introPlaying) return;
   $('start').classList.add('hide');
   introPlaying = true;
-  $('idle').classList.remove('hide'); $('corner').classList.add('hide');
+  $('idle').classList.remove('hide'); $('corner').classList.add('hide'); $('qrFloat').classList.add('hide'); $('ticker').classList.add('hide');
   $('idle').classList.add('enter');
   jingle();
   // Chạy xong màn chào đón (~4,5 giây) mới phát bài đang chờ
@@ -308,6 +312,7 @@ function sync() {
   $('idle').classList.toggle('hide', !!c);
   $('corner').classList.toggle('hide', !c);
   $('ticker').classList.toggle('hide', !c);
+  $('qrFloat').classList.toggle('hide', !c);
   renderNext();
   if (!ytReady || !started) return;
   player.setVolume(state.volume);
