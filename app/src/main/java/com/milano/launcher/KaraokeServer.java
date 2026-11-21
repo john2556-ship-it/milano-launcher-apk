@@ -72,7 +72,8 @@ public class KaraokeServer {
     private final List<JSONObject> history = new ArrayList<>();
     private final List<String> singers = new ArrayList<>();   // danh sách tên người hát (dùng chung mọi điện thoại)
     private int volume = 80;
-    private String brand1 = "MILANO", brand2 = "KARAOKE";   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
+    private String brand1 = "MILANO", brand2 = "KARAOKE";
+    private volatile boolean introOnStart = true;   // chạy màn chào đón khi mở app Milano Launcher   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
     private boolean paused = false;
     private long seq = 1;
     private final LinkedList<Object[]> events = new LinkedList<>(); // {seq, role|null, msg}
@@ -124,6 +125,7 @@ public class KaraokeServer {
     }
 
     public boolean isRunning() { return running; }
+    public boolean introOnStart() { return introOnStart; }
     public int getPort() { return port; }
     public String localTvUrl() { return "http://127.0.0.1:" + port + "/tv"; }
     public String remoteUrl() { return "http://" + lanIp() + ":" + port + "/?t=" + token; }
@@ -334,6 +336,7 @@ public class KaraokeServer {
                 .put("singers", new JSONArray(singers))
                 .put("brand1", brand1)
                 .put("brand2", brand2)
+                .put("introOnStart", introOnStart)
                 .put("volume", volume)
                 .put("paused", paused);
     }
@@ -436,6 +439,9 @@ public class KaraokeServer {
                     changed();
                 }
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
+                break;
+            case "setIntroOnStart":
+                synchronized (lock) { introOnStart = m.optBoolean("on", true); changed(); }
                 break;
             case "replayIntro":
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
@@ -688,6 +694,7 @@ public class KaraokeServer {
             JSONObject s = new JSONObject(b.toString("UTF-8"));
             current = s.optJSONObject("current");
             volume = s.optInt("volume", 80);
+            introOnStart = s.optBoolean("introOnStart", true);
             if (s.has("brand1") || s.has("brand2")) { brand1 = s.optString("brand1"); brand2 = s.optString("brand2"); }
             JSONArray q = s.optJSONArray("queue"), h = s.optJSONArray("history");
             JSONArray sg = s.optJSONArray("singers");

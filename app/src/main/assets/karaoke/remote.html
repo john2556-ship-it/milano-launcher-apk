@@ -197,6 +197,7 @@
     <div class="sub" style="margin-top:12px">Tên trên màn chào đón TV</div>
     <input id="brand1" placeholder="Dòng chữ vàng (vd: MILANO)" maxlength="24" style="margin-top:8px">
     <input id="brand2" placeholder="Dòng chữ neon (vd: KARAOKE)" maxlength="24" style="margin-top:8px">
+    <label class="chk" style="margin-top:14px"><input type="checkbox" id="introStart"> Chạy màn chào đón khi mở Milano Launcher</label>
     <div class="row">
       <button class="primary" id="btnBrand">Lưu &amp; xem trên TV</button>
       <button id="btnIntro">▶ Xem lại chào đón</button>
@@ -343,6 +344,7 @@ function toast(msg) { $('toast').textContent = msg; $('toast').classList.add('sh
 let brandShown = '';
 function render() {
   const c = state.current;
+  $('introStart').checked = state.introOnStart !== false;
   const bn = [state.brand1, state.brand2].filter(Boolean).join(' ');
   if (bn && bn !== brandShown) {
     brandShown = bn; $('appName').textContent = bn; document.title = bn;
@@ -430,6 +432,10 @@ $('btnLink').onclick = () => {
 $('btnBrand').onclick = () => {
   send({ type: 'setBrand', brand1: $('brand1').value.trim().toUpperCase(), brand2: $('brand2').value.trim().toUpperCase() });
   toast('📺 Đã lưu — TV đang chạy lại màn chào đón');
+};
+$('introStart').onchange = e => {
+  send({ type: 'setIntroOnStart', on: e.target.checked });
+  toast(e.target.checked ? '✅ Mở Milano Launcher sẽ chạy màn chào đón' : '⏭ Mở Milano Launcher sẽ vào thẳng launcher');
 };
 $('btnIntro').onclick = () => { send({ type: 'replayIntro' }); toast('📺 TV đang chạy màn chào đón'); };
 $('btnClear').onclick = () => { if (confirm('Xoá hết hàng chờ?')) send({ type: 'clear' }); };

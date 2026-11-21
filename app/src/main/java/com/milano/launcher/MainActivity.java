@@ -95,11 +95,21 @@ public class MainActivity extends Activity {
 
         tts = new TextToSpeech(this, status -> ttsReady = (status == TextToSpeech.SUCCESS));
 
-        if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else web.loadUrl(BuildConfig.LAUNCHER_URL);
+        if (savedInstanceState != null) {
+            web.restoreState(savedInstanceState);
+            startKaraoke();
+        } else {
+            // Mới mở app: chạy màn chào đón Karaoke trên TV (~4,5 giây) rồi tự vào launcher
+            String intro = null;
+            try {
+                KaraokeServer k = karaoke();
+                k.start(8686);
+                if (k.introOnStart()) intro = "http://127.0.0.1:" + k.getPort() + "/tv?intro=1";
+            } catch (Exception ignored) { }
+            web.loadUrl(intro != null ? intro : BuildConfig.LAUNCHER_URL);
+        }
 
         askStartPermissions();
-        startKaraoke();
     }
 
     /* ---------------- Karaoke ---------------- */

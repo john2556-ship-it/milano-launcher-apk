@@ -268,6 +268,16 @@ function jingleOn(A, t0) {
   }
 }
 
+// Chế độ chào đón khi mới mở app Milano Launcher: chạy xong thì vào launcher
+const INTRO_ONLY = new URLSearchParams(location.search).get('intro') === '1';
+function toLauncher() {
+  $('idle').style.transition = 'opacity .6s'; $('idle').style.opacity = 0;
+  setTimeout(() => { try { MilanoApp.reload(); } catch (_) { history.back(); } }, 600);
+}
+if (INTRO_ONLY) {
+  document.querySelector('#idle .sub').style.display = 'none';   // chưa vào karaoke: không cần mã QR
+  $('qrCard').style.display = 'none';
+}
 let introPlaying = false, introTimer;
 function playIntro() {
   introPlaying = true;
@@ -278,6 +288,7 @@ function playIntro() {
   jingle();
   clearTimeout(introTimer);
   // Chạy xong màn chào đón (~4,5 giây) mới phát bài
+  if (INTRO_ONLY) { introTimer = setTimeout(toLauncher, 4300); return; }
   introTimer = setTimeout(() => { introPlaying = false; started = true; sync(); if (wasPlaying) player.playVideo(); }, 4500);
 }
 function begin() {
@@ -295,6 +306,7 @@ if (/MilanoLauncher/.test(navigator.userAgent)) {
 }
 // Nút Back của Milano Launcher: đóng bảng tìm trên TV trước, không có gì để đóng thì về launcher
 window.milanoBack = () => {
+  if (INTRO_ONLY) { clearTimeout(introTimer); toLauncher(); return true; }   // bấm Back: vào launcher luôn
   if (!$('tvs').classList.contains('hide')) { closeTvSearch(); return true; }
   return false;
 };
@@ -439,6 +451,7 @@ function addFocused() {
 
 document.addEventListener('keydown', e => {
   const k = e.key;
+  if (INTRO_ONLY) { if (k === 'Enter' || k === ' ') { e.preventDefault(); clearTimeout(introTimer); toLauncher(); } return; }   // OK: bỏ qua chào đón
   if (!started) { if (k === 'Enter' || k === ' ') { e.preventDefault(); begin(); } return; }
 
   if (!$('tvs').classList.contains('hide')) {
