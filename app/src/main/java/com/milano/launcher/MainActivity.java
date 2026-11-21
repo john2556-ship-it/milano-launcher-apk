@@ -106,7 +106,7 @@ public class MainActivity extends Activity {
                 k.start(8686);
                 if (k.introOnStart()) intro = "http://127.0.0.1:" + k.getPort() + "/tv?intro=1";
             } catch (Exception ignored) { }
-            web.loadUrl(intro != null ? intro : BuildConfig.LAUNCHER_URL);
+            web.loadUrl(intro != null ? intro : freshLauncherUrl());
         }
 
         askStartPermissions();
@@ -217,7 +217,7 @@ public class MainActivity extends Activity {
             if (!onFallback) return;
             if (isOnline()) {
                 onFallback = false;
-                web.loadUrl(BuildConfig.LAUNCHER_URL);
+                web.loadUrl(freshLauncherUrl());
             } else {
                 scheduleOnlineCheck();
             }
@@ -382,9 +382,18 @@ public class MainActivity extends Activity {
         public void reload() {
             runOnUiThread(() -> {
                 onFallback = false;
-                web.loadUrl(BuildConfig.LAUNCHER_URL);
+                web.loadUrl(freshLauncherUrl());
             });
         }
+    }
+
+    /**
+     * Địa chỉ launcher kèm số thời gian (?v=...) để luôn tải bản mới nhất từ Cloudflare,
+     * không dùng bản cũ còn trong bộ nhớ đệm. Mất mạng thì tự dùng bản đi kèm trong app.
+     */
+    private static String freshLauncherUrl() {
+        String u = BuildConfig.LAUNCHER_URL;
+        return u + (u.contains("?") ? "&" : "?") + "v=" + System.currentTimeMillis();
     }
 
     /** Trang đang mở có phải launcher (bản web hoặc bản đi kèm) không. */
@@ -398,7 +407,7 @@ public class MainActivity extends Activity {
     private void goHome() {
         runOnUiThread(() -> {
             onFallback = false;
-            web.loadUrl(BuildConfig.LAUNCHER_URL);
+            web.loadUrl(freshLauncherUrl());
         });
     }
 
