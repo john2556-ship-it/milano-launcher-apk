@@ -465,7 +465,7 @@ public class KaraokeServer {
 
     /** Thêm tên vào danh sách người hát (không trùng, tối đa 40 tên). Gọi khi đang giữ lock. */
     private void rememberSinger(String name) {
-        if (name == null || name.isEmpty()) return;
+        if (name == null || name.isEmpty() || name.equalsIgnoreCase("Khách")) return;
         for (String x : singers) if (x.equalsIgnoreCase(name)) return;
         singers.add(name);
         while (singers.size() > 40) singers.remove(0);

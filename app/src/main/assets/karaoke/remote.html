@@ -68,10 +68,12 @@
   button.pri{background:linear-gradient(135deg,#ff5d8f,#ff9a3c);border:none}
   .tag{font-size:12px;font-weight:800;color:#ffd36e;border:1px solid #ffd36e66;border-radius:99px;padding:5px 9px;white-space:nowrap}
   .me{display:flex;align-items:center;gap:8px;margin-top:12px}
-  .me select{flex:1;min-width:0;appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239aa3b8' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 16px center;
+  html,body{overflow-x:hidden;max-width:100%}
+  .me select{flex:1 1 0;width:0;min-width:0;appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239aa3b8' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 16px center;
              border:1px solid var(--line);color:var(--text);border-radius:999px;padding:11px 40px 11px 16px;font-size:16px;font-weight:700;outline:none}
   .me select:focus{border-color:var(--accent2)}
-  .me button{flex:none;width:44px;height:44px;padding:0;font-size:16px}
+  .me button{flex:none;width:42px;height:42px;padding:0;font-size:16px}
+  .me.need select{border-color:#ff5d8f;box-shadow:0 0 0 3px #ff5d8f55}
   .me span{color:var(--dim);font-size:13px;white-space:nowrap}
 </style>
 </head>
@@ -169,7 +171,7 @@ function renderSingers(list) {
   $('singerSel').innerHTML = '<option value="">— Chọn tên —</option>'
     + list.map(n => `<option value="${esc(n)}"${n === mySinger ? ' selected' : ''}>🎤 ${esc(n)}</option>`).join('')
     + '<option value="__new">＋ Thêm tên mới…</option>';
-  $('singerDel').style.visibility = mySinger ? 'visible' : 'hidden';
+  $('singerDel').style.display = mySinger ? '' : 'none';
 }
 function pickSinger(n) {
   mySinger = n; localStorage.setItem('singer', n); singersKey = null;
@@ -179,6 +181,15 @@ function askNewSinger() {
   const n = (prompt('Tên người hát:') || '').trim().slice(0, 30);
   if (n) { send({ type: 'addSinger', name: n }); pickSinger(n); toast('🎤 Đã chọn: ' + n); }
   else pickSinger(mySinger);
+}
+// Chưa chọn tên mà thêm bài: hỏi tên 1 lần, lưu lại cho lần sau. Bỏ trống = "Khách"
+function ensureSinger() {
+  if (mySinger) return mySinger;
+  const n = (prompt('Ai hát bài này?\n(Gõ tên một lần, lần sau tự chọn sẵn. Bỏ trống = Khách)') || '').trim().slice(0, 30);
+  if (n) { send({ type: 'addSinger', name: n }); pickSinger(n); return n; }
+  document.querySelector('.me').classList.add('need');
+  setTimeout(() => document.querySelector('.me').classList.remove('need'), 2500);
+  return 'Khách';
 }
 $('singerSel').onchange = e => {
   const v = e.target.value;
@@ -315,7 +326,7 @@ $('btnTvSearch').onclick = () => {
 $('btnLink').onclick = () => {
   const url = $('link').value.trim();
   if (!url) return $('link').focus();
-  send({ type: 'addLink', url, title: $('linkTitle').value.trim(), singer: singer() });
+  send({ type: 'addLink', url, title: $('linkTitle').value.trim(), singer: ensureSinger() });
   $('link').value = ''; $('linkTitle').value = '';
 };
 $('btnClear').onclick = () => { if (confirm('Xoá hết hàng chờ?')) send({ type: 'clear' }); };
@@ -334,12 +345,12 @@ document.addEventListener('click', e => {
   else if (d.cmd) send({ type: d.cmd });
   else if (d.vol) send({ type: 'volume', delta: +d.vol });
   else if (d.add !== undefined) {
-    send({ type: 'add', item: results[+d.add], singer: singer(), next: !!d.next });
+    send({ type: 'add', item: results[+d.add], singer: ensureSinger(), next: !!d.next });
     b.textContent = '✓ Đã thêm'; setTimeout(() => b.textContent = d.next ? '⚡ Ưu tiên' : '＋ Thêm', 1200);
   }
   else if (d.remove) send({ type: 'remove', id: d.remove });
   else if (d.move) { send({ type: 'move', id: d.id, dir: d.move }); if (d.move === 'top') toast('⚡ Đã ưu tiên — hát kế tiếp'); }
-  else if (d.readd) send({ type: 'readd', id: d.readd, singer: singer() });
+  else if (d.readd) send({ type: 'readd', id: d.readd, singer: ensureSinger() });
 });
 </script>
 </body>
