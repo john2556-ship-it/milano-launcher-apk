@@ -58,6 +58,15 @@
          transition:transform .25s;z-index:9;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
   #toast.show{transform:translateX(-50%) translateY(0)}
   #conn{position:fixed;top:0;left:0;right:0;background:#b3261e;text-align:center;font-size:13px;padding:4px;z-index:10}
+  .qwrap{position:relative}
+  .qwrap input{padding-right:52px}
+  .qwrap .clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;padding:0;
+              border-radius:50%;background:#4a5068;border:none;font-size:15px;line-height:34px;text-align:center;display:none}
+  .qwrap .clr.show{display:block}
+  .item .acts.col{flex-direction:column}
+  .item .acts button.lbl{font-size:13px;padding:7px 11px;white-space:nowrap}
+  button.pri{background:linear-gradient(135deg,#ff5d8f,#ff9a3c);border:none}
+  .tag{font-size:12px;font-weight:800;color:#ffd36e;border:1px solid #ffd36e66;border-radius:99px;padding:5px 9px;white-space:nowrap}
   .me{display:flex;align-items:center;gap:8px;margin-top:12px}
   .me input{padding:10px 14px;font-size:15px}
   .me span{color:var(--dim);font-size:13px;white-space:nowrap}
@@ -93,7 +102,10 @@
 
 <!-- Tìm bài -->
 <div class="card">
-  <input id="q" placeholder="Tên bài hát, ca sĩ…" enterkeyhint="search" autocomplete="off">
+  <div class="qwrap">
+    <input id="q" placeholder="Tên bài hát, ca sĩ…" enterkeyhint="search" autocomplete="off">
+    <button class="clr" id="qClear" aria-label="Xoá">✕</button>
+  </div>
   <div class="row">
     <button class="primary" id="btnSearch">Tìm bài</button>
     <button id="btnTvSearch">Tìm trên TV</button>
@@ -204,8 +216,8 @@ function render() {
       <div class="num">${i + 1}</div>
       <img src="${esc(x.thumb)}" loading="lazy" alt="">
       <div class="info"><div class="t">${esc(x.title)}</div><div class="m">${[x.singer ? '🎤 ' + esc(x.singer) : '', esc(x.duration)].filter(Boolean).join(' · ')}</div></div>
-      <div class="acts">
-        ${i > 0 ? `<button data-move="top" data-id="${x.id}" title="Ưu tiên lên đầu">⤒</button>` : ''}
+      <div class="acts col" style="align-items:flex-end">
+        ${i > 0 ? `<button class="lbl pri" data-move="top" data-id="${x.id}">⚡ Ưu tiên</button>` : '<span class="tag">Kế tiếp</span>'}
         <button data-remove="${x.id}" title="Xoá">✕</button>
       </div>
     </div>`).join('') : '<div class="empty">Hàng chờ trống</div>';
@@ -225,9 +237,9 @@ function renderResults() {
     <div class="item">
       <img src="${esc(x.thumb)}" loading="lazy" alt="">
       <div class="info"><div class="t">${esc(x.title)}</div><div class="m">${[esc(x.duration), esc(x.channel)].filter(Boolean).join(' · ')}</div></div>
-      <div class="acts">
-        <button data-add="${i}" title="Thêm vào cuối hàng chờ">＋</button>
-        <button data-add="${i}" data-next="1" title="Hát kế tiếp">⚡</button>
+      <div class="acts col">
+        <button class="lbl" data-add="${i}">＋ Thêm</button>
+        <button class="lbl pri" data-add="${i}" data-next="1">⚡ Ưu tiên</button>
       </div>
     </div>`).join('') : '<div class="empty">Không thấy bài nào</div>';
 }
@@ -249,6 +261,9 @@ async function doSearch() {
   } catch (_) { $('results').innerHTML = '<div class="empty">Lỗi tìm kiếm, thử lại</div>'; }
 }
 $('btnSearch').onclick = doSearch;
+const paintClr = () => $('qClear').classList.toggle('show', !!$('q').value);
+$('q').addEventListener('input', paintClr);
+$('qClear').onclick = () => { $('q').value = ''; paintClr(); $('q').focus(); };
 $('q').onkeydown = e => { if (e.key === 'Enter') doSearch(); };
 $('btnTvSearch').onclick = () => {
   const q = $('q').value.trim();
@@ -279,10 +294,10 @@ document.addEventListener('click', e => {
   else if (d.vol) send({ type: 'volume', delta: +d.vol });
   else if (d.add !== undefined) {
     send({ type: 'add', item: results[+d.add], singer: singer(), next: !!d.next });
-    b.textContent = '✓'; setTimeout(() => b.textContent = d.next ? '⚡' : '＋', 1200);
+    b.textContent = '✓ Đã thêm'; setTimeout(() => b.textContent = d.next ? '⚡ Ưu tiên' : '＋ Thêm', 1200);
   }
   else if (d.remove) send({ type: 'remove', id: d.remove });
-  else if (d.move) send({ type: 'move', id: d.id, dir: d.move });
+  else if (d.move) { send({ type: 'move', id: d.id, dir: d.move }); if (d.move === 'top') toast('⚡ Đã ưu tiên — hát kế tiếp'); }
   else if (d.readd) send({ type: 'readd', id: d.readd, singer: singer() });
 });
 </script>
