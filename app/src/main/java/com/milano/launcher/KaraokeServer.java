@@ -70,6 +70,7 @@ public class KaraokeServer {
     private JSONObject current = null;
     private final List<JSONObject> queue = new ArrayList<>();
     private final List<JSONObject> history = new ArrayList<>();
+    private final List<String> singers = new ArrayList<>();   // danh sách tên người hát (dùng chung mọi điện thoại)
     private int volume = 80;
     private boolean paused = false;
     private long seq = 1;
@@ -327,6 +328,7 @@ public class KaraokeServer {
                 .put("current", current == null ? JSONObject.NULL : current)
                 .put("queue", new JSONArray(queue))
                 .put("history", new JSONArray(history))
+                .put("singers", new JSONArray(singers))
                 .put("volume", volume)
                 .put("paused", paused);
     }
@@ -404,9 +406,28 @@ public class KaraokeServer {
                     }
                 }
                 break;
+            case "restart": {
+                // Hát lại từ đầu: đổi người hát thành tên đang chọn trên điện thoại
+                String sg = clip(m.optString("singer"), 30);
+                synchronized (lock) {
+                    if (current != null && !sg.isEmpty() && !sg.equals(current.optString("singer"))) {
+                        current.put("singer", sg);
+                        rememberSinger(sg);
+                        toast("🎤 " + sg + " hát lại từ đầu");
+                        changed();
+                    }
+                }
+                event("tv", new JSONObject().put("type", "cmd").put("cmd", "restart"));
+                break;
+            }
             case "toggle":
-            case "restart":
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", type));
+                break;
+            case "addSinger":
+                synchronized (lock) { rememberSinger(clip(m.optString("name"), 30)); changed(); }
+                break;
+            case "removeSinger":
+                synchronized (lock) { singers.remove(clip(m.optString("name"), 30)); changed(); }
                 break;
             case "volume":
                 synchronized (lock) {
@@ -442,9 +463,18 @@ public class KaraokeServer {
         return -1;
     }
 
+    /** Thêm tên vào danh sách người hát (không trùng, tối đa 40 tên). Gọi khi đang giữ lock. */
+    private void rememberSinger(String name) {
+        if (name == null || name.isEmpty()) return;
+        for (String x : singers) if (x.equalsIgnoreCase(name)) return;
+        singers.add(name);
+        while (singers.size() > 40) singers.remove(0);
+    }
+
     private void addItem(JSONObject it, boolean next) {
         if (it == null) return;
         synchronized (lock) {
+            rememberSinger(it.optString("singer"));
             if (next) queue.add(0, it); else queue.add(it);
             String sg = it.optString("singer");
             toast("🎤 Đã thêm: " + it.optString("title") + (sg.isEmpty() ? "" : " — " + sg));
@@ -642,6 +672,8 @@ public class KaraokeServer {
             current = s.optJSONObject("current");
             volume = s.optInt("volume", 80);
             JSONArray q = s.optJSONArray("queue"), h = s.optJSONArray("history");
+            JSONArray sg = s.optJSONArray("singers");
+            if (sg != null) for (int i = 0; i < sg.length(); i++) if (!sg.optString(i).isEmpty()) singers.add(sg.optString(i));
             if (q != null) for (int i = 0; i < q.length(); i++) if (q.optJSONObject(i) != null) queue.add(q.optJSONObject(i));
             if (h != null) for (int i = 0; i < h.length(); i++) if (h.optJSONObject(i) != null) history.add(h.optJSONObject(i));
         } catch (Exception ignored) { }

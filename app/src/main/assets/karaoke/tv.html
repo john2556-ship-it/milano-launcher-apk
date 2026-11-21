@@ -312,6 +312,7 @@ function sync() {
   if (!ytReady || !started) return;
   player.setVolume(state.volume);
   if (!c) { if (loadedId) { player.stopVideo(); loadedId = null; } return; }
+  if (loadedId === c.id && tickKey !== c.id + '|' + c.singer) setTicker(c);   // đổi người hát khi hát lại
   if (loadedId !== c.id) {
     loadedId = c.id;
     player.loadVideoById(c.videoId);
@@ -327,7 +328,9 @@ function renderNext() {
 }
 
 let bt;
+let tickKey = '';
 function setTicker(c) {
+  tickKey = c.id + '|' + c.singer;
   const who = c.singer ? `🎤 <b>${esc(c.singer)}</b> đang hát: ` : '🎤 Đang hát: ';
   const one = `<span>${who}${esc(c.title)}</span>`;
   $('tickRun').innerHTML = one + one;           // lặp 2 lần để chạy liên tục không đứt

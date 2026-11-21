@@ -68,7 +68,10 @@
   button.pri{background:linear-gradient(135deg,#ff5d8f,#ff9a3c);border:none}
   .tag{font-size:12px;font-weight:800;color:#ffd36e;border:1px solid #ffd36e66;border-radius:99px;padding:5px 9px;white-space:nowrap}
   .me{display:flex;align-items:center;gap:8px;margin-top:12px}
-  .me input{padding:10px 14px;font-size:15px}
+  .me select{flex:1;min-width:0;appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239aa3b8' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 16px center;
+             border:1px solid var(--line);color:var(--text);border-radius:999px;padding:11px 40px 11px 16px;font-size:16px;font-weight:700;outline:none}
+  .me select:focus{border-color:var(--accent2)}
+  .me button{flex:none;width:44px;height:44px;padding:0;font-size:16px}
   .me span{color:var(--dim);font-size:13px;white-space:nowrap}
 </style>
 </head>
@@ -78,7 +81,12 @@
 
 <h1 id="appName">KARAOKE</h1>
 <div class="sub">Chọn bài · Hát trên TV</div>
-<div class="me"><span>Tên bạn:</span><input id="singer" placeholder="(tuỳ chọn) để hiện trên TV" maxlength="30"></div>
+<div class="me">
+  <span>Người hát:</span>
+  <select id="singerSel" aria-label="Chọn người hát"></select>
+  <button id="singerAdd" title="Thêm tên">＋</button>
+  <button id="singerDel" title="Xoá tên đang chọn khỏi danh sách">🗑</button>
+</div>
 
 <!-- Đang hát -->
 <div class="card">
@@ -149,9 +157,40 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 let state = null, results = [];
 
 // ---- tên người hát nhớ trong máy ----
-$('singer').value = localStorage.getItem('singer') || '';
-$('singer').oninput = e => localStorage.setItem('singer', e.target.value);
-const singer = () => $('singer').value.trim();
+// ---- Người hát: danh sách lưu trên TV, mỗi điện thoại nhớ tên mình đang chọn ----
+let mySinger = localStorage.getItem('singer') || '';
+const singer = () => mySinger;
+let singersKey = null;
+function renderSingers(list) {
+  const key = JSON.stringify(list) + '|' + mySinger;
+  if (key === singersKey) return;
+  singersKey = key;
+  if (mySinger && !list.some(n => n.toLowerCase() === mySinger.toLowerCase())) list = [...list, mySinger];
+  $('singerSel').innerHTML = '<option value="">— Chọn tên —</option>'
+    + list.map(n => `<option value="${esc(n)}"${n === mySinger ? ' selected' : ''}>🎤 ${esc(n)}</option>`).join('')
+    + '<option value="__new">＋ Thêm tên mới…</option>';
+  $('singerDel').style.visibility = mySinger ? 'visible' : 'hidden';
+}
+function pickSinger(n) {
+  mySinger = n; localStorage.setItem('singer', n); singersKey = null;
+  if (state) renderSingers(state.singers || []);
+}
+function askNewSinger() {
+  const n = (prompt('Tên người hát:') || '').trim().slice(0, 30);
+  if (n) { send({ type: 'addSinger', name: n }); pickSinger(n); toast('🎤 Đã chọn: ' + n); }
+  else pickSinger(mySinger);
+}
+$('singerSel').onchange = e => {
+  const v = e.target.value;
+  if (v === '__new') return askNewSinger();
+  pickSinger(v);
+};
+$('singerAdd').onclick = askNewSinger;
+$('singerDel').onclick = () => {
+  if (!mySinger || !confirm(`Xoá "${mySinger}" khỏi danh sách?`)) return;
+  send({ type: 'removeSinger', name: mySinger });
+  pickSinger('');
+};
 
 // ---- Mã truy cập (token) lấy từ mã QR, nhớ lại trong máy ----
 const TOKEN = new URLSearchParams(location.search).get('t') || localStorage.getItem('karaoke_t') || '';
@@ -202,6 +241,7 @@ function toast(msg) { $('toast').textContent = msg; $('toast').classList.add('sh
 // ---- render ----
 function render() {
   const c = state.current;
+  renderSingers(state.singers || []);
   $('npTitle').textContent = c ? c.title : 'Chưa có bài — chọn bài bên dưới';
   $('npSinger').textContent = c && c.singer ? '🎤 ' + c.singer : '';
   $('npThumb').src = c ? c.thumb : '';
@@ -290,6 +330,7 @@ document.addEventListener('click', e => {
     const n = b.querySelector('.n'); if (n && d.toggle !== 'results') n.textContent = el.classList.contains('hide') ? '+' : '−';
     if (d.toggle === 'results') $('resN').textContent = el.classList.contains('hide') ? '+' : '−';
   }
+  else if (d.cmd === 'restart') send({ type: 'restart', singer: singer() });
   else if (d.cmd) send({ type: d.cmd });
   else if (d.vol) send({ type: 'volume', delta: +d.vol });
   else if (d.add !== undefined) {
