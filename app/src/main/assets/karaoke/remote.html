@@ -145,6 +145,20 @@
   <div class="row hide" id="clearRow"><button id="btnClear">Xoá hết hàng chờ</button></div>
 </div>
 
+<!-- Cài đặt -->
+<div class="card">
+  <div class="sec" data-toggle="setBox">⚙️ Cài đặt <span class="n">+</span></div>
+  <div id="setBox" class="hide">
+    <div class="sub" style="margin-top:12px">Tên trên màn chào đón TV</div>
+    <input id="brand1" placeholder="Dòng chữ vàng (vd: MILANO)" maxlength="24" style="margin-top:8px">
+    <input id="brand2" placeholder="Dòng chữ neon (vd: KARAOKE)" maxlength="24" style="margin-top:8px">
+    <div class="row">
+      <button class="primary" id="btnBrand">Lưu &amp; xem trên TV</button>
+      <button id="btnIntro">▶ Xem lại chào đón</button>
+    </div>
+  </div>
+</div>
+
 <!-- Đã hát -->
 <div class="card">
   <div class="sec" data-toggle="history">Đã hát <span class="n">+</span></div>
@@ -250,8 +264,16 @@ let tt;
 function toast(msg) { $('toast').textContent = msg; $('toast').classList.add('show'); clearTimeout(tt); tt = setTimeout(() => $('toast').classList.remove('show'), 2600); }
 
 // ---- render ----
+let brandShown = '';
 function render() {
   const c = state.current;
+  const bn = [state.brand1, state.brand2].filter(Boolean).join(' ');
+  if (bn && bn !== brandShown) {
+    brandShown = bn; $('appName').textContent = bn; document.title = bn;
+    if (document.activeElement !== $('brand1') && document.activeElement !== $('brand2')) {
+      $('brand1').value = state.brand1 || ''; $('brand2').value = state.brand2 || '';
+    }
+  }
   renderSingers(state.singers || []);
   $('npTitle').textContent = c ? c.title : 'Chưa có bài — chọn bài bên dưới';
   $('npSinger').textContent = c && c.singer ? '🎤 ' + c.singer : '';
@@ -329,6 +351,11 @@ $('btnLink').onclick = () => {
   send({ type: 'addLink', url, title: $('linkTitle').value.trim(), singer: ensureSinger() });
   $('link').value = ''; $('linkTitle').value = '';
 };
+$('btnBrand').onclick = () => {
+  send({ type: 'setBrand', brand1: $('brand1').value.trim().toUpperCase(), brand2: $('brand2').value.trim().toUpperCase() });
+  toast('📺 Đã lưu — TV đang chạy lại màn chào đón');
+};
+$('btnIntro').onclick = () => { send({ type: 'replayIntro' }); toast('📺 TV đang chạy màn chào đón'); };
 $('btnClear').onclick = () => { if (confirm('Xoá hết hàng chờ?')) send({ type: 'clear' }); };
 
 // ---- click delegation ----

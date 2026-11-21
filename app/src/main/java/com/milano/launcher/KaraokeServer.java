@@ -72,6 +72,7 @@ public class KaraokeServer {
     private final List<JSONObject> history = new ArrayList<>();
     private final List<String> singers = new ArrayList<>();   // danh sách tên người hát (dùng chung mọi điện thoại)
     private int volume = 80;
+    private String brand1 = "MILANO", brand2 = "KARAOKE";   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
     private boolean paused = false;
     private long seq = 1;
     private final LinkedList<Object[]> events = new LinkedList<>(); // {seq, role|null, msg}
@@ -238,7 +239,9 @@ public class KaraokeServer {
         try {
             switch (p) {
                 case "/api/info":
-                    json(out, 200, new JSONObject().put("name", appName).put("remoteUrl", remoteUrl()));
+                    String nm;
+                    synchronized (lock) { nm = (brand1 + " " + brand2).trim(); }
+                    json(out, 200, new JSONObject().put("name", nm.isEmpty() ? appName : nm).put("remoteUrl", remoteUrl()));
                     return;
                 case "/api/poll":
                     json(out, 200, poll(parseLong(r.q.get("since"), -1), r.q.get("role")));
@@ -329,6 +332,8 @@ public class KaraokeServer {
                 .put("queue", new JSONArray(queue))
                 .put("history", new JSONArray(history))
                 .put("singers", new JSONArray(singers))
+                .put("brand1", brand1)
+                .put("brand2", brand2)
                 .put("volume", volume)
                 .put("paused", paused);
     }
@@ -422,6 +427,18 @@ public class KaraokeServer {
             }
             case "toggle":
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", type));
+                break;
+            case "setBrand":
+                synchronized (lock) {
+                    brand1 = clip(m.optString("brand1"), 24);
+                    brand2 = clip(m.optString("brand2"), 24);
+                    if (brand1.isEmpty() && brand2.isEmpty()) { brand1 = "MILANO"; brand2 = "KARAOKE"; }
+                    changed();
+                }
+                event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
+                break;
+            case "replayIntro":
+                event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
                 break;
             case "addSinger":
                 synchronized (lock) { rememberSinger(clip(m.optString("name"), 30)); changed(); }
@@ -671,6 +688,7 @@ public class KaraokeServer {
             JSONObject s = new JSONObject(b.toString("UTF-8"));
             current = s.optJSONObject("current");
             volume = s.optInt("volume", 80);
+            if (s.has("brand1") || s.has("brand2")) { brand1 = s.optString("brand1"); brand2 = s.optString("brand2"); }
             JSONArray q = s.optJSONArray("queue"), h = s.optJSONArray("history");
             JSONArray sg = s.optJSONArray("singers");
             if (sg != null) for (int i = 0; i < sg.length(); i++) if (!sg.optString(i).isEmpty()) singers.add(sg.optString(i));

@@ -147,8 +147,8 @@
   <div id="eq"></div>
   <div class="center">
     <div class="hello">🎤 Chào mừng đến với</div>
-    <div class="t1" id="t1">MILANO</div>
-    <div class="t2">KARAOKE</div>
+    <div class="t1" id="t1"></div>
+    <div class="t2" id="t2"></div>
     <div class="sub">Quét mã QR bằng điện thoại để chọn bài</div>
   </div>
   <div id="qrCard">
@@ -200,8 +200,22 @@ setInterval(loadInfo, 5 * 60 * 1000);   // đổi Wi-Fi / IP thì mã QR tự c�
 // ---------- Bắt đầu (1 lần bấm cho phép tự phát có tiếng) ----------
 $('startBtn').focus();
 // ---------- Màn chào đón MILANO KARAOKE ----------
+// Tên trên màn chào đón (đổi trong ⚙️ Cài đặt trên điện thoại)
+let brandKey = '';
+function setBrand(b1, b2) {
+  const key = b1 + '|' + b2;
+  if (key === brandKey) return;
+  brandKey = key;
+  const chars = [...b1];
+  $('t1').innerHTML = chars.map((ch, i) => `<span style="animation-delay:${(.15 + i * Math.min(.12, 1.2 / Math.max(chars.length, 1))).toFixed(2)}s">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('');
+  $('t2').textContent = b2;
+  // Tên dài thì chữ nhỏ lại cho vừa màn hình
+  $('t1').style.fontSize = Math.min(10, 135 / Math.max(chars.length, 1)) + 'vw';
+  $('t2').style.fontSize = Math.min(7.5, 80 / Math.max([...b2].length, 1)) + 'vw';
+  $('t2').style.display = b2 ? '' : 'none';
+}
+setBrand('MILANO', 'KARAOKE');
 (function buildStage() {
-  $('t1').innerHTML = [...'MILANO'].map((ch, i) => `<span style="animation-delay:${.15 + i * .12}s">${ch}</span>`).join('');
   $('eq').innerHTML = Array.from({ length: 36 }, () =>
     `<i style="animation-duration:${(0.35 + Math.random() * 0.6).toFixed(2)}s;animation-delay:-${Math.random().toFixed(2)}s"></i>`).join('');
   const sym = ['♪', '♫', '♬', '♩', '🎵', '🎤'];
@@ -254,20 +268,31 @@ function jingleOn(A, t0) {
   }
 }
 
-let introPlaying = false;
+let introPlaying = false, introTimer;
+function playIntro() {
+  introPlaying = true;
+  const wasPlaying = ytReady && loadedId && player.getPlayerState() === YT.PlayerState.PLAYING;
+  if (wasPlaying) player.pauseVideo();
+  $('idle').classList.remove('hide'); $('corner').classList.add('hide'); $('qrFloat').classList.add('hide'); $('ticker').classList.add('hide');
+  $('idle').classList.remove('enter'); void $('idle').offsetWidth; $('idle').classList.add('enter');   // chạy lại hiệu ứng
+  jingle();
+  clearTimeout(introTimer);
+  // Chạy xong màn chào đón (~4,5 giây) mới phát bài
+  introTimer = setTimeout(() => { introPlaying = false; started = true; sync(); if (wasPlaying) player.playVideo(); }, 4500);
+}
 function begin() {
   if (started || introPlaying) return;
   $('start').classList.add('hide');
-  introPlaying = true;
-  $('idle').classList.remove('hide'); $('corner').classList.add('hide'); $('qrFloat').classList.add('hide'); $('ticker').classList.add('hide');
-  $('idle').classList.add('enter');
-  jingle();
-  // Chạy xong màn chào đón (~4,5 giây) mới phát bài đang chờ
-  setTimeout(() => { introPlaying = false; started = true; sync(); }, 4500);
+  playIntro();
 }
 $('startBtn').onclick = begin;
-// Trong app Milano Launcher thì TV đã cho phép tự phát có tiếng: bỏ qua màn "Bấm OK"
-if (/MilanoLauncher/.test(navigator.userAgent)) begin();
+// Trong app Milano Launcher thì TV đã cho phép tự phát có tiếng: bỏ qua màn "Bấm OK".
+// Chờ lấy tên đã lưu từ máy chủ (tối đa 1,5 giây) rồi mới chạy màn chào đón.
+let gotState = false;
+if (/MilanoLauncher/.test(navigator.userAgent)) {
+  const wait = Date.now();
+  (function go() { if (gotState || Date.now() - wait > 1500) begin(); else setTimeout(go, 50); })();
+}
 // Nút Back của Milano Launcher: đóng bảng tìm trên TV trước, không có gì để đóng thì về launcher
 window.milanoBack = () => {
   if (!$('tvs').classList.contains('hide')) { closeTvSearch(); return true; }
@@ -364,7 +389,9 @@ let since = -1;
     try {
       const r = await fetch('/api/poll?role=tv&since=' + since, { cache: 'no-store' });
       const j = await r.json();
-      since = j.seq; state = j.state; sync();
+      since = j.seq; state = j.state; gotState = true;
+      setBrand(state.brand1 ?? 'MILANO', state.brand2 ?? 'KARAOKE');
+      sync();
       (j.events || []).forEach(onEvent);
     } catch (_) { await sleep(2000); }
   }
@@ -374,6 +401,7 @@ function onEvent(m) {
     else if (m.type === 'cmd' && ytReady) {
       if (m.cmd === 'toggle') player.getPlayerState() === YT.PlayerState.PLAYING ? player.pauseVideo() : player.playVideo();
       if (m.cmd === 'restart') { player.seekTo(0, true); player.playVideo(); }
+      if (m.cmd === 'intro' && started) playIntro();
       if (m.cmd === 'volume') { player.setVolume(m.value); toast('🔊 Âm lượng ' + m.value + '%'); }
     }
     else if (m.type === 'tvSearch') openTvSearch(m);
