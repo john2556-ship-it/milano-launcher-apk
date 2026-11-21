@@ -13,15 +13,74 @@
   #player{position:fixed;inset:0;width:100vw;height:100vh;border:0}
   .hide{display:none!important}
 
-  /* Màn hình chờ */
-  #idle{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;gap:6vw;
-        background:radial-gradient(900px 500px at 75% 10%,#2a2a6e 0,transparent 60%),
-                   radial-gradient(700px 500px at 10% 90%,#5a1d4a 0,transparent 60%),#0b1020;z-index:2}
-  #idle h1{font-size:7vw;margin:0;font-weight:900;letter-spacing:-2px;
-           background:linear-gradient(135deg,#ff5d8f,#ffd36e,#7c5cff);-webkit-background-clip:text;color:transparent}
-  #idle p{font-size:2.2vw;color:#b9c0d4;margin:1vw 0 0}
-  #idle .url{font-size:1.6vw;color:#7f89a6;margin-top:2vw}
-  #idle .qr{background:#fff;padding:1.2vw;border-radius:2vw;width:24vw;height:24vw;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  /* ===== Màn hình chờ / chào đón MILANO KARAOKE ===== */
+  #idle{position:fixed;inset:0;z-index:2;overflow:hidden;background:#05030f}
+  #idle .lights{position:absolute;inset:-25%;filter:blur(40px);opacity:.9;
+    background:radial-gradient(30% 30% at 25% 30%,#ff2d87aa,transparent 70%),
+               radial-gradient(30% 30% at 75% 25%,#7c5cffaa,transparent 70%),
+               radial-gradient(35% 35% at 50% 85%,#00d4ffaa,transparent 70%);
+    animation:spin 18s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* Đèn sân khấu quét qua lại */
+  .beam{position:absolute;top:-10vh;width:16vw;height:130vh;transform-origin:50% 0;mix-blend-mode:screen;
+        background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0) 85%);
+        clip-path:polygon(45% 0,55% 0,100% 100%,0 100%);opacity:.35}
+  .beam.b1{left:12vw;animation:sweepL 5s ease-in-out infinite alternate;background:linear-gradient(180deg,#ff5d8fcc,transparent 85%)}
+  .beam.b2{right:12vw;animation:sweepR 6s ease-in-out infinite alternate;background:linear-gradient(180deg,#7cd8ffcc,transparent 85%)}
+  .beam.b3{left:42vw;animation:sweepL 7s ease-in-out infinite alternate-reverse;background:linear-gradient(180deg,#ffd36ecc,transparent 85%)}
+  @keyframes sweepL{from{transform:rotate(-28deg)}to{transform:rotate(22deg)}}
+  @keyframes sweepR{from{transform:rotate(28deg)}to{transform:rotate(-22deg)}}
+
+  #idle .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+                padding-bottom:10vh;text-align:center}
+  #idle .hello{font-size:2vw;letter-spacing:.6vw;color:#ffe9b0;text-transform:uppercase;opacity:.9}
+  #idle .t1{font-size:10vw;font-weight:900;line-height:.95;letter-spacing:.4vw;margin-top:1vw;
+            filter:drop-shadow(0 .4vw 1.2vw rgba(255,180,60,.45))}
+  #idle .t1 span{display:inline-block;color:#ffd36e;
+            background:linear-gradient(180deg,#fff6d8 0%,#ffd36e 45%,#e08a1e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  #idle .t2{font-size:7.5vw;font-weight:900;letter-spacing:1.2vw;color:#fff;margin-top:.5vw;
+            text-shadow:0 0 .6vw #fff,0 0 1.6vw #ff4fa0,0 0 3.5vw #ff4fa0,0 0 6vw #ff2d87;
+            animation:neon 3s infinite}
+  @keyframes neon{0%,18%,22%,62%,64%,100%{opacity:1}20%,63%{opacity:.55}}
+  #idle .sub{font-size:2vw;color:#d6dcf0;margin-top:2vw}
+
+  /* Cột nhạc nhảy ở dưới */
+  #eq{position:absolute;left:0;right:0;bottom:0;height:16vh;display:flex;align-items:flex-end;gap:.5vw;padding:0 2vw;opacity:.85}
+  #eq i{flex:1;height:100%;border-radius:.5vw .5vw 0 0;transform-origin:bottom;
+        background:linear-gradient(0deg,#7c5cff,#ff4fa0 60%,#ffd36e);animation:eq 1s ease-in-out infinite alternate}
+  @keyframes eq{from{transform:scaleY(.08)}to{transform:scaleY(1)}}
+
+  /* Nốt nhạc bay lên */
+  .note{position:absolute;bottom:-6vh;font-size:3vw;color:#fff;opacity:0;animation:rise linear infinite;text-shadow:0 0 1vw #ff4fa0}
+  @keyframes rise{0%{transform:translateY(0) rotate(0);opacity:0}10%{opacity:.9}100%{transform:translateY(-110vh) rotate(40deg);opacity:0}}
+
+  /* Mã QR ở góc */
+  #qrCard{position:absolute;right:2.5vw;bottom:3vw;display:flex;align-items:center;gap:1.4vw;z-index:2;
+          background:rgba(10,8,30,.7);border:1px solid rgba(255,255,255,.18);border-radius:1.6vw;padding:1vw 1.2vw 1vw 1.6vw;
+          backdrop-filter:blur(10px);box-shadow:0 1vw 4vw rgba(0,0,0,.5)}
+  #qrCard .txt{font-size:1.5vw;font-weight:800;line-height:1.3;width:15vw}
+  #qrCard .txt small{display:block;font-weight:400;color:#9aa3b8;font-size:1vw;margin-top:.4vw;word-break:break-all}
+  #qrCard .qr{background:#fff;padding:.6vw;border-radius:1vw;width:13vw;height:13vw;position:relative}
+  #qrCard .qr::after{content:"";position:absolute;inset:-.5vw;border-radius:1.4vw;border:.25vw solid #ff4fa0;animation:ring 2s ease-out infinite}
+  @keyframes ring{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:scale(1.12)}}
+
+  /* ---- Hiệu ứng mở màn (chạy 1 lần khi vào) ---- */
+  #idle.enter .lights{animation:fadeIn 1.2s ease both, spin 18s linear infinite}
+  #idle.enter .beam{animation-delay:0s}
+  #idle.enter .hello{animation:up .8s .3s ease both}
+  #idle.enter .t1 span{animation:drop .7s cubic-bezier(.2,1.6,.4,1) both}
+  #idle.enter .t2{animation:flickOn 1.2s 1.6s both, neon 3s 2.8s infinite}
+  #idle.enter .sub{animation:up .8s 2.6s ease both}
+  #idle.enter #eq{animation:fadeIn 1s 1.2s both}
+  #idle.enter #qrCard{animation:slideIn .9s 3s cubic-bezier(.2,1.3,.4,1) both}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:3}
+  #idle.enter #flash{animation:flash .9s 1.55s ease-out both}
+  @keyframes fadeIn{from{opacity:0}}
+  @keyframes up{from{opacity:0;transform:translateY(3vw)}}
+  @keyframes drop{from{opacity:0;transform:translateY(-60vh) scale(1.6)}}
+  @keyframes flickOn{0%{opacity:0}10%{opacity:1}15%{opacity:.1}25%{opacity:1}30%{opacity:.2}45%,100%{opacity:1}}
+  @keyframes flash{0%{opacity:0}6%{opacity:.85}100%{opacity:0}}
+  @keyframes slideIn{from{opacity:0;transform:translateX(30vw)}}
   .qr svg{width:100%;height:100%;display:block}
 
   /* Góc QR + bài tiếp theo */
@@ -70,12 +129,21 @@
 <div id="player"></div>
 
 <div id="idle">
-  <div>
-    <h1 id="appName">KARAOKE</h1>
-    <p>Quét mã bằng điện thoại để chọn bài 🎤</p>
-    <div class="url" id="idleUrl"></div>
+  <div class="lights"></div>
+  <div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div>
+  <div id="notes"></div>
+  <div id="eq"></div>
+  <div class="center">
+    <div class="hello">🎤 Chào mừng đến với</div>
+    <div class="t1" id="t1">MILANO</div>
+    <div class="t2">KARAOKE</div>
+    <div class="sub">Quét mã QR bằng điện thoại để chọn bài</div>
   </div>
-  <div class="qr" id="qrBig"></div>
+  <div id="qrCard">
+    <div class="txt">📱 Quét để chọn bài<small id="idleUrl"></small></div>
+    <div class="qr" id="qrBig"></div>
+  </div>
+  <div id="flash"></div>
 </div>
 
 <div id="corner" class="hide">
@@ -109,7 +177,6 @@ function drawQr(url) {
 }
 function loadInfo() {
   fetch('/api/info').then(r => r.json()).then(i => {
-    $('appName').textContent = i.name;
     $('idleUrl').textContent = i.remoteUrl.replace(/\?t=.*/, '');
     drawQr(i.remoteUrl);
   }).catch(() => setTimeout(loadInfo, 3000));
@@ -119,11 +186,62 @@ setInterval(loadInfo, 5 * 60 * 1000);   // đổi Wi-Fi / IP thì mã QR tự c�
 
 // ---------- Bắt đầu (1 lần bấm cho phép tự phát có tiếng) ----------
 $('startBtn').focus();
+// ---------- Màn chào đón MILANO KARAOKE ----------
+(function buildStage() {
+  $('t1').innerHTML = [...'MILANO'].map((ch, i) => `<span style="animation-delay:${.15 + i * .12}s">${ch}</span>`).join('');
+  $('eq').innerHTML = Array.from({ length: 36 }, () =>
+    `<i style="animation-duration:${(0.35 + Math.random() * 0.6).toFixed(2)}s;animation-delay:-${Math.random().toFixed(2)}s"></i>`).join('');
+  const sym = ['♪', '♫', '♬', '♩', '🎵', '🎤'];
+  $('notes').innerHTML = Array.from({ length: 14 }, (_, i) =>
+    `<span class="note" style="left:${(i * 7 + Math.random() * 5).toFixed(1)}vw;animation-duration:${(7 + Math.random() * 6).toFixed(1)}s;animation-delay:-${(Math.random() * 10).toFixed(1)}s;font-size:${(2 + Math.random() * 2).toFixed(1)}vw">${sym[i % sym.length]}</span>`).join('');
+})();
+
+// Nhạc hiệu ngắn (tự tổng hợp, không cần file nhạc)
+function jingle() {
+  try {
+    const A = new (window.AudioContext || window.webkitAudioContext)();
+    const out = A.createGain(); out.gain.value = 0.22; out.connect(A.destination);
+    const t0 = A.currentTime + 0.05;
+    const tone = (f, t, d, type = 'triangle', v = 1) => {
+      const o = A.createOscillator(), g = A.createGain();
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.05);
+    };
+    const kick = t => {
+      const o = A.createOscillator(), g = A.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.25);
+      g.gain.setValueAtTime(1.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.35);
+    };
+    const crash = t => {
+      const b = A.createBuffer(1, A.sampleRate * 1.2, A.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+      const n = A.createBufferSource(), f = A.createBiquadFilter(), g = A.createGain();
+      f.type = 'highpass'; f.frequency.value = 5000; g.gain.value = 0.5;
+      n.buffer = b; n.connect(f); f.connect(g); g.connect(out); n.start(t);
+    };
+    // Lên dần từng chữ MILANO, rồi bùng lên ở chữ KARAOKE
+    [523, 587, 659, 698, 784, 880].forEach((f, i) => tone(f, t0 + 0.15 + i * 0.12, 0.25, 'square', 0.35));
+    [0, 0.5, 1.0].forEach(d => kick(t0 + d));
+    const hit = t0 + 1.6;
+    kick(hit); crash(hit);
+    [523, 659, 784, 1047].forEach(f => tone(f, hit, 1.6, 'sawtooth', 0.28));
+    [262, 392].forEach(f => tone(f, hit, 1.8, 'triangle', 0.6));
+    tone(1319, hit + 0.45, 0.6, 'square', 0.25); tone(1568, hit + 0.7, 0.9, 'square', 0.25);
+  } catch (_) { }
+}
+
+let introPlaying = false;
 function begin() {
-  if (started) return;
-  started = true;
+  if (started || introPlaying) return;
   $('start').classList.add('hide');
-  sync();
+  introPlaying = true;
+  $('idle').classList.remove('hide'); $('corner').classList.add('hide');
+  $('idle').classList.add('enter');
+  jingle();
+  // Chạy xong màn chào đón (~4,5 giây) mới phát bài đang chờ
+  setTimeout(() => { introPlaying = false; started = true; sync(); }, 4500);
 }
 $('startBtn').onclick = begin;
 // Trong app Milano Launcher thì TV đã cho phép tự phát có tiếng: bỏ qua màn "Bấm OK"
@@ -158,6 +276,7 @@ window.onYouTubeIframeAPIReady = () => {
 function sync() {
   if (!state) return;
   const c = state.current;
+  if (introPlaying) return;
   $('idle').classList.toggle('hide', !!c);
   $('corner').classList.toggle('hide', !c);
   renderNext();

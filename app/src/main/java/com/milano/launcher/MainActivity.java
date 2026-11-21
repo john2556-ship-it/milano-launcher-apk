@@ -107,7 +107,7 @@ public class MainActivity extends Activity {
     private synchronized KaraokeServer karaoke() {
         if (karaoke == null) {
             final android.content.Context app = getApplicationContext();
-            karaoke = new KaraokeServer(name -> app.getAssets().open(name), app.getFilesDir(), "KARAOKE");
+            karaoke = new KaraokeServer(name -> app.getAssets().open(name), app.getFilesDir(), "MILANO KARAOKE");
         }
         return karaoke;
     }
