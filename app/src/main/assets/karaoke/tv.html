@@ -93,6 +93,14 @@
   #nextBox .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.2vw}
 
   /* Banner tên bài lúc bắt đầu */
+  /* Dải chữ chạy trên cùng: ai đang hát bài gì (hiện suốt bài) */
+  #ticker{position:fixed;left:1.5vw;right:39vw;top:1.5vw;z-index:3;height:3.6vw;overflow:hidden;border-radius:99px;
+          background:rgba(10,14,30,.72);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);
+          -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 3%,#000 97%,transparent 100%)}
+  #ticker .run{display:inline-flex;white-space:nowrap;height:100%;align-items:center;animation:tick linear infinite}
+  #ticker .run span{padding-right:6vw;font-size:1.7vw;font-weight:800;color:#fff}
+  #ticker .run b{color:#ffd36e}
+  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
   #banner{position:fixed;left:2vw;bottom:3vw;z-index:3;background:rgba(10,14,30,.82);border-left:.5vw solid #ff5d8f;
           padding:1.2vw 2vw;border-radius:1vw;max-width:70vw;transition:opacity .6s, transform .6s}
   #banner .t{font-size:2.2vw;font-weight:800}
@@ -151,6 +159,7 @@
   <div class="qr" id="qrSmall"></div>
 </div>
 
+<div id="ticker" class="hide"><div class="run" id="tickRun"></div></div>
 <div id="banner" class="out"><div class="t" id="bTitle"></div><div class="s" id="bSinger"></div></div>
 <div id="toast"></div>
 
@@ -298,6 +307,7 @@ function sync() {
   if (introPlaying) return;
   $('idle').classList.toggle('hide', !!c);
   $('corner').classList.toggle('hide', !c);
+  $('ticker').classList.toggle('hide', !c);
   renderNext();
   if (!ytReady || !started) return;
   player.setVolume(state.volume);
@@ -317,7 +327,15 @@ function renderNext() {
 }
 
 let bt;
+function setTicker(c) {
+  const who = c.singer ? `🎤 <b>${esc(c.singer)}</b> đang hát: ` : '🎤 Đang hát: ';
+  const one = `<span>${who}${esc(c.title)}</span>`;
+  $('tickRun').innerHTML = one + one;           // lặp 2 lần để chạy liên tục không đứt
+  const len = (c.singer || '').length + c.title.length;
+  $('tickRun').style.animationDuration = Math.max(12, len * 0.35) + 's';
+}
 function showBanner(c) {
+  setTicker(c);
   $('bTitle').textContent = c.title;
   $('bSinger').textContent = c.singer ? '🎤 ' + c.singer : '';
   $('banner').classList.remove('out');
