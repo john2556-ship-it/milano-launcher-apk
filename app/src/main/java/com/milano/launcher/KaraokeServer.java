@@ -73,7 +73,8 @@ public class KaraokeServer {
     private final List<String> singers = new ArrayList<>();   // danh sách tên người hát (dùng chung mọi điện thoại)
     private int volume = 80;
     private String brand1 = "MILANO", brand2 = "KARAOKE";
-    private volatile boolean introOnStart = true;   // chạy màn chào đón khi mở app Milano Launcher   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
+    private volatile boolean introOnStart = true;
+    private String introStyle = "video";   // "video" = video chào đón; "effects" = hiệu ứng có tên tự đặt   // chạy màn chào đón khi mở app Milano Launcher   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
     private boolean paused = false;
     private long seq = 1;
     private final LinkedList<Object[]> events = new LinkedList<>(); // {seq, role|null, msg}
@@ -144,7 +145,7 @@ public class KaraokeServer {
     // ================= HTTP tối giản =================
 
     private static class Req {
-        String method, path, body = "";
+        String method, path, body = "", range;
         Map<String, String> q = new HashMap<>();
         boolean local;
     }
@@ -164,6 +165,7 @@ public class KaraokeServer {
             String h;
             while ((h = readLine(in)) != null && !h.isEmpty()) {
                 int c = h.indexOf(':');
+                if (c > 0 && h.substring(0, c).trim().equalsIgnoreCase("range")) r.range = h.substring(c + 1).trim();
                 if (c > 0 && h.substring(0, c).trim().equalsIgnoreCase("content-length")) {
                     try { len = Integer.parseInt(h.substring(c + 1).trim()); } catch (NumberFormatException ignored) { }
                 }
@@ -208,14 +210,19 @@ public class KaraokeServer {
     }
 
     private void respond(OutputStream out, int code, String type, byte[] body) throws IOException {
-        String status = code == 200 ? "OK" : code == 403 ? "Forbidden" : code == 404 ? "Not Found" : "Error";
+        respond(out, code, type, body, 0, body.length, null);
+    }
+
+    private void respond(OutputStream out, int code, String type, byte[] body, int off, int len, String extra) throws IOException {
+        String status = code == 200 ? "OK" : code == 206 ? "Partial Content" : code == 403 ? "Forbidden" : code == 404 ? "Not Found" : "Error";
         String head = "HTTP/1.1 " + code + " " + status + "\r\n"
                 + "Content-Type: " + type + "\r\n"
-                + "Content-Length: " + body.length + "\r\n"
+                + "Content-Length: " + len + "\r\n"
+                + (extra != null ? extra : "")
                 + "Cache-Control: no-store\r\n"
                 + "Connection: close\r\n\r\n";
         out.write(head.getBytes(StandardCharsets.UTF_8));
-        out.write(body);
+        out.write(body, off, len);
         out.flush();
     }
 
@@ -225,11 +232,11 @@ public class KaraokeServer {
 
     private void route(Req r, OutputStream out) throws IOException {
         String p = r.path;
-        if (p.equals("/") || p.equals("/index.html")) { asset(out, "remote.html"); return; }
-        if (p.equals("/tv")) { asset(out, "tv.html"); return; }
+        if (p.equals("/") || p.equals("/index.html")) { asset(out, "remote.html", null); return; }
+        if (p.equals("/tv")) { asset(out, "tv.html", null); return; }
         if (!p.startsWith("/api/")) {
             String name = p.substring(1);
-            if (SAFE_NAME.matcher(name).matches()) asset(out, name);
+            if (SAFE_NAME.matcher(name).matches()) asset(out, name, r.range);
             else respond(out, 404, "text/plain", "404".getBytes());
             return;
         }
@@ -269,7 +276,10 @@ public class KaraokeServer {
         respond(out, 404, "text/plain", "404".getBytes());
     }
 
-    private void asset(OutputStream out, String name) throws IOException {
+    private final Map<String, byte[]> assetCache = Collections.synchronizedMap(new HashMap<>());
+
+    private void asset(OutputStream out, String name, String range) throws IOException {
+        if (name.endsWith(".mp4")) { video(out, name, range); return; }
         try (InputStream in = assets.open("karaoke/" + name)) {
             ByteArrayOutputStream b = new ByteArrayOutputStream();
             byte[] buf = new byte[8192];
@@ -282,6 +292,39 @@ public class KaraokeServer {
         } catch (IOException e) {
             respond(out, 404, "text/plain", "404".getBytes());
         }
+    }
+
+    /** Phát video (intro) có hỗ trợ tải từng đoạn (Range) để trình phát của TV tua và phát mượt. */
+    private void video(OutputStream out, String name, String range) throws IOException {
+        byte[] data = assetCache.get(name);
+        if (data == null) {
+            try (InputStream in = assets.open("karaoke/" + name)) {
+                ByteArrayOutputStream b = new ByteArrayOutputStream();
+                byte[] buf = new byte[65536];
+                int n;
+                while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
+                data = b.toByteArray();
+                assetCache.put(name, data);
+            } catch (IOException e) {
+                respond(out, 404, "text/plain", "404".getBytes());
+                return;
+            }
+        }
+        int total = data.length;
+        if (range != null && range.startsWith("bytes=")) {
+            try {
+                String[] se = range.substring(6).split(",")[0].split("-", -1);
+                int start, end;
+                if (se[0].isEmpty()) { start = Math.max(0, total - Integer.parseInt(se[1].trim())); end = total - 1; }
+                else { start = Integer.parseInt(se[0].trim()); end = se.length > 1 && !se[1].isEmpty() ? Math.min(Integer.parseInt(se[1].trim()), total - 1) : total - 1; }
+                if (start <= end && start < total) {
+                    respond(out, 206, "video/mp4", data, start, end - start + 1,
+                            "Accept-Ranges: bytes\r\nContent-Range: bytes " + start + "-" + end + "/" + total + "\r\n");
+                    return;
+                }
+            } catch (NumberFormatException ignored) { }
+        }
+        respond(out, 200, "video/mp4", data, 0, total, "Accept-Ranges: bytes\r\n");
     }
 
     // ================= Đồng bộ (long-poll) =================
@@ -337,6 +380,7 @@ public class KaraokeServer {
                 .put("brand1", brand1)
                 .put("brand2", brand2)
                 .put("introOnStart", introOnStart)
+                .put("introStyle", introStyle)
                 .put("volume", volume)
                 .put("paused", paused);
     }
@@ -438,6 +482,10 @@ public class KaraokeServer {
                     if (brand1.isEmpty() && brand2.isEmpty()) { brand1 = "MILANO"; brand2 = "KARAOKE"; }
                     changed();
                 }
+                event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
+                break;
+            case "setIntroStyle":
+                synchronized (lock) { introStyle = "effects".equals(m.optString("style")) ? "effects" : "video"; changed(); }
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
                 break;
             case "setIntroOnStart":
@@ -695,6 +743,7 @@ public class KaraokeServer {
             current = s.optJSONObject("current");
             volume = s.optInt("volume", 80);
             introOnStart = s.optBoolean("introOnStart", true);
+            introStyle = "effects".equals(s.optString("introStyle")) ? "effects" : "video";
             if (s.has("brand1") || s.has("brand2")) { brand1 = s.optString("brand1"); brand2 = s.optString("brand2"); }
             JSONArray q = s.optJSONArray("queue"), h = s.optJSONArray("history");
             JSONArray sg = s.optJSONArray("singers");

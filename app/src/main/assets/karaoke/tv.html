@@ -116,6 +116,9 @@
          transition:opacity .4s;opacity:0;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #toast.show{opacity:1}
 
+  /* Video chào đón */
+  #introVid{position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;background:#000;z-index:8;transition:opacity .6s}
+  #introVid.fade{opacity:0}
   /* Màn bắt đầu (cần 1 lần bấm OK để TV cho phép phát tiếng) */
   #start{position:fixed;inset:0;z-index:9;background:rgba(5,8,20,.92);display:flex;flex-direction:column;
          align-items:center;justify-content:center;font-size:2.4vw}
@@ -172,6 +175,7 @@
   <div id="tvsGrid"></div>
 </div>
 
+<video id="introVid" class="hide" src="/intro.mp4" preload="auto" playsinline></video>
 <div id="start">
   <div>🎤 Karaoke đã sẵn sàng</div>
   <button id="startBtn">Bấm OK để bắt đầu</button>
@@ -272,6 +276,7 @@ function jingleOn(A, t0) {
 const INTRO_ONLY = new URLSearchParams(location.search).get('intro') === '1';
 function toLauncher() {
   $('idle').style.transition = 'opacity .6s'; $('idle').style.opacity = 0;
+  $('introVid').classList.add('fade');
   setTimeout(() => { try { MilanoApp.reload(); } catch (_) { history.back(); } }, 600);
 }
 if (INTRO_ONLY) {
@@ -279,17 +284,47 @@ if (INTRO_ONLY) {
   $('qrCard').style.display = 'none';
 }
 let introPlaying = false, introTimer;
+let introFinish = null;
+// Kết thúc màn chào đón (chạy hết, hoặc bấm OK/Back để bỏ qua)
+function finishIntro() {
+  const f = introFinish; introFinish = null;
+  clearTimeout(introTimer);
+  if (!f) return;
+  const v = $('introVid');
+  if (INTRO_ONLY) { v.pause(); f(); return; }          // giữ khung hình cuối, mờ dần vào launcher
+  v.classList.add('fade');
+  setTimeout(() => { v.pause(); v.classList.add('hide'); v.classList.remove('fade'); }, 600);
+  f();
+}
 function playIntro() {
   introPlaying = true;
   const wasPlaying = ytReady && loadedId && player.getPlayerState() === YT.PlayerState.PLAYING;
   if (wasPlaying) player.pauseVideo();
   $('idle').classList.remove('hide'); $('corner').classList.add('hide'); $('qrFloat').classList.add('hide'); $('ticker').classList.add('hide');
-  $('idle').classList.remove('enter'); void $('idle').offsetWidth; $('idle').classList.add('enter');   // chạy lại hiệu ứng
-  jingle();
   clearTimeout(introTimer);
-  // Chạy xong màn chào đón (~4,5 giây) mới phát bài
-  if (INTRO_ONLY) { introTimer = setTimeout(toLauncher, 4300); return; }
-  introTimer = setTimeout(() => { introPlaying = false; started = true; sync(); if (wasPlaying) player.playVideo(); }, 4500);
+  introFinish = INTRO_ONLY ? toLauncher : () => { introPlaying = false; started = true; sync(); if (wasPlaying) player.playVideo(); };
+  if ((state && state.introStyle) !== 'effects') videoIntro(); else effectsIntro();
+}
+// Kiểu 1: video chào đón (mặc định)
+function videoIntro() {
+  const v = $('introVid');
+  let fell = false;
+  const fallback = () => { if (fell) return; fell = true; v.classList.add('hide'); effectsIntro(); };
+  v.classList.remove('hide', 'fade');
+  v.muted = false;
+  try { v.currentTime = 0; } catch (_) { }
+  v.onended = finishIntro;
+  v.onerror = fallback;
+  const p = v.play();
+  if (p && p.catch) p.catch(() => { v.muted = true; v.play().catch(fallback); });   // TV chặn tiếng: phát không tiếng
+  introTimer = setTimeout(finishIntro, 15000);   // an toàn: video kẹt thì vẫn tiếp tục
+}
+// Kiểu 2: hiệu ứng có tên tự đặt
+function effectsIntro() {
+  clearTimeout(introTimer);
+  $('idle').classList.remove('enter'); void $('idle').offsetWidth; $('idle').classList.add('enter');
+  jingle();
+  introTimer = setTimeout(finishIntro, INTRO_ONLY ? 4300 : 4500);
 }
 function begin() {
   if (started || introPlaying) return;
@@ -306,7 +341,7 @@ if (/MilanoLauncher/.test(navigator.userAgent)) {
 }
 // Nút Back của Milano Launcher: đóng bảng tìm trên TV trước, không có gì để đóng thì về launcher
 window.milanoBack = () => {
-  if (INTRO_ONLY) { clearTimeout(introTimer); toLauncher(); return true; }   // bấm Back: vào launcher luôn
+  if (introPlaying || INTRO_ONLY) { finishIntro(); return true; }   // bấm Back: bỏ qua chào đón
   if (!$('tvs').classList.contains('hide')) { closeTvSearch(); return true; }
   return false;
 };
@@ -451,7 +486,7 @@ function addFocused() {
 
 document.addEventListener('keydown', e => {
   const k = e.key;
-  if (INTRO_ONLY) { if (k === 'Enter' || k === ' ') { e.preventDefault(); clearTimeout(introTimer); toLauncher(); } return; }   // OK: bỏ qua chào đón
+  if (introPlaying || INTRO_ONLY) { if (k === 'Enter' || k === ' ') { e.preventDefault(); finishIntro(); } return; }   // OK: bỏ qua chào đón
   if (!started) { if (k === 'Enter' || k === ' ') { e.preventDefault(); begin(); } return; }
 
   if (!$('tvs').classList.contains('hide')) {
