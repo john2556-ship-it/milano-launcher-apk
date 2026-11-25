@@ -137,7 +137,7 @@
   /* Kiểu chữ mặc định giống video mẫu: vàng kim nổi, chữ cuối xanh ngọc, dòng 3 viết tay vàng */
   #introText .l1,#introText .l2{font-family:'MKDisplay',sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:.15vw;line-height:1.3;
        filter:drop-shadow(0 .14vw 0 #4a3424) drop-shadow(0 .3vw .25vw rgba(30,18,10,.85)) drop-shadow(0 0 1.4vw rgba(240,218,180,.3))}
-  #introText .l2{margin-top:.2vw}
+  #introText .l2{margin-top:.9vw}
   #introText .g,#introText .t{-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   /* Màu lấy từ video mẫu: vàng sâm panh dịu + xanh ngọc nhạt pha bạc */
   #introText .g{color:#dec29a;background-image:linear-gradient(180deg,#fbf1dc 0%,#f0dab4 26%,#dec29a 50%,#b49c7d 76%,#ead5b0 100%)}
@@ -148,11 +148,11 @@
   /* Dải sáng uốn lượn quanh dòng 3 */
   #ribbons{position:absolute;left:50%;width:78vw;height:22vw;transform:translateX(-50%);pointer-events:none;opacity:0}
   #ribbons path{fill:none;stroke-linecap:round;stroke-dasharray:1600;stroke-dashoffset:1600}
-  #introText.go #ribbons{animation:ribIn .4s 2.4s both}
+  #introText.go #ribbons{animation:ribIn .4s 3.9s both}
   #introText.go #ribbons path{animation:draw 1.8s cubic-bezier(.3,.6,.2,1) both}
-  #introText.go #ribbons path:nth-child(1){animation-delay:2.4s}
-  #introText.go #ribbons path:nth-child(2){animation-delay:2.6s}
-  #introText.go #ribbons path:nth-child(3){animation-delay:2.8s}
+  #introText.go #ribbons path:nth-child(1){animation-delay:3.9s}
+  #introText.go #ribbons path:nth-child(2){animation-delay:4.1s}
+  #introText.go #ribbons path:nth-child(3){animation-delay:4.3s}
   @keyframes ribIn{to{opacity:1}}
   @keyframes draw{to{stroke-dashoffset:0}}
   /* Nốt nhạc + lấp lánh quanh chữ */
@@ -166,15 +166,16 @@
   #introText.go .sp{animation:twinkle 1.6s ease-in-out infinite}
   @keyframes twinkle{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1)}}
   #introText.go .l{animation:zoomIn 1.3s cubic-bezier(.16,1,.3,1) both, breathe 6s ease-in-out 1.3s infinite alternate}
-  #introText.go .l1{animation-delay:.5s, 1.8s}
-  #introText.go .l2{animation-delay:1.4s, 2.7s}
-  #introText.go .l3{animation-delay:2.3s, 3.6s}
+  /* Chữ đợi đèn sân khấu bật (~2 giây) rồi mới hiện */
+  #introText.go .l1{animation-delay:2s, 3.3s}
+  #introText.go .l2{animation-delay:2.9s, 4.2s}
+  #introText.go .l3{animation-delay:3.8s, 5.1s}
   /* Zoom in: chữ hiện ra nhỏ rồi to dần lên đúng cỡ, sau đó tiếp tục tiến lại gần thật chậm */
   @keyframes zoomIn{0%{opacity:0;transform:scale(.15);filter:blur(1vw)}45%{opacity:1}100%{opacity:1;transform:scale(1);filter:blur(0)}}
   @keyframes breathe{from{transform:scale(1)}to{transform:scale(1.06)}}
   #introText .flare{position:absolute;width:60vw;height:.35vw;left:20vw;top:50%;opacity:0;
        background:linear-gradient(90deg,transparent,#fff,transparent);filter:blur(.15vw)}
-  #introText.go .flare{animation:flare 1.1s .45s ease-out both}
+  #introText.go .flare{animation:flare 1.1s 1.95s ease-out both}
   @keyframes flare{0%{opacity:0;transform:scaleX(.1)}30%{opacity:1}100%{opacity:0;transform:scaleX(1.6)}}
   /* Màn bắt đầu (cần 1 lần bấm OK để TV cho phép phát tiếng) */
   #start{position:fixed;inset:0;z-index:9;background:rgba(5,8,20,.92);display:flex;flex-direction:column;
@@ -407,10 +408,10 @@ function showIntroText() {
   let fx = '';
   for (let i = 0; i < 12; i++) {
     const left = i % 2 ? 62 + Math.random() * 22 : 14 + Math.random() * 22, top = 22 + Math.random() * 56;
-    fx += `<span class="nt" style="left:${left}vw;top:${top}vh;font-size:${(1.6 + Math.random() * 1.8).toFixed(1)}vw;animation-delay:${(1 + Math.random() * 2.5).toFixed(2)}s,${(Math.random() * 2).toFixed(2)}s">${notes[i % 4]}</span>`;
+    fx += `<span class="nt" style="left:${left}vw;top:${top}vh;font-size:${(1.6 + Math.random() * 1.8).toFixed(1)}vw;animation-delay:${(2.5 + Math.random() * 2.5).toFixed(2)}s,${(Math.random() * 2).toFixed(2)}s">${notes[i % 4]}</span>`;
   }
   for (let i = 0; i < 26; i++) {
-    fx += `<span class="sp" style="left:${(8 + Math.random() * 84).toFixed(1)}vw;top:${(15 + Math.random() * 70).toFixed(1)}vh;animation-delay:${(Math.random() * 3).toFixed(2)}s;animation-duration:${(1.2 + Math.random() * 1.5).toFixed(2)}s"></span>`;
+    fx += `<span class="sp" style="left:${(8 + Math.random() * 84).toFixed(1)}vw;top:${(15 + Math.random() * 70).toFixed(1)}vh;animation-delay:${(2 + Math.random() * 3).toFixed(2)}s;animation-duration:${(1.2 + Math.random() * 1.5).toFixed(2)}s"></span>`;
   }
   $('itFx').innerHTML = fx;
   tx.classList.remove('hide', 'fade', 'go'); void tx.offsetWidth; tx.classList.add('go');
