@@ -126,7 +126,7 @@
   #introVid{position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;background:#000;z-index:8;transition:opacity .6s}
   #introVid.fade{opacity:0}
   #introVid.kb{animation:kenburns 12s ease-out both}          /* video nền zoom chậm */
-  @keyframes kenburns{from{transform:scale(1.18)}to{transform:scale(1)}}   /* zoom out */
+  @keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.16)}}   /* zoom in: video nền phóng to dần */
 
   /* ===== Chữ đặt lên video intro: hiệu ứng zoom in ===== */
   #introText{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -168,9 +168,9 @@
   #introText.go .l1{animation-delay:.5s, 1.8s}
   #introText.go .l2{animation-delay:1.4s, 2.7s}
   #introText.go .l3{animation-delay:2.3s, 3.6s}
-  /* Zoom out: chữ hiện ra lớn rồi thu dần về đúng cỡ, sau đó tiếp tục lùi xa thật chậm */
-  @keyframes zoomIn{0%{opacity:0;transform:scale(3.2);filter:blur(1.6vw)}55%{opacity:1}100%{opacity:1;transform:scale(1);filter:blur(0)}}
-  @keyframes breathe{from{transform:scale(1)}to{transform:scale(.95)}}
+  /* Zoom in: chữ hiện ra nhỏ rồi to dần lên đúng cỡ, sau đó tiếp tục tiến lại gần thật chậm */
+  @keyframes zoomIn{0%{opacity:0;transform:scale(.15);filter:blur(1vw)}45%{opacity:1}100%{opacity:1;transform:scale(1);filter:blur(0)}}
+  @keyframes breathe{from{transform:scale(1)}to{transform:scale(1.06)}}
   #introText .flare{position:absolute;width:60vw;height:.35vw;left:20vw;top:50%;opacity:0;
        background:linear-gradient(90deg,transparent,#fff,transparent);filter:blur(.15vw)}
   #introText.go .flare{animation:flare 1.1s .45s ease-out both}
