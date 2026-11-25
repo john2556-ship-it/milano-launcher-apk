@@ -704,7 +704,7 @@ function ipLocate(cb){
     else cb(LOCATIONS.houston);
   }).catch(function(){ cb(LOCATIONS.houston); });
 }
-var lastPlace="Houston, Texas";
+var lastPlace="Houston, Texas", lastCoords=null;
 function loadWeather(){
   getCoords(function(loc){
     var u = cfg.unit==="C" ? "celsius":"fahrenheit", w = cfg.unit==="C" ? "kmh":"mph";
@@ -718,7 +718,7 @@ function loadWeather(){
       $("wIcon").textContent = icon;
       $("wTemp").textContent = Math.round(c.temperature_2m)+"°"+cfg.unit;
       $("wDesc").textContent = info[1];
-      $("wPlace").textContent = "📍 "+loc.name; lastPlace = loc.name;
+      $("wPlace").textContent = "📍 "+loc.name; lastPlace = loc.name; lastCoords = {lat:loc.lat, lon:loc.lon};
       $("wFeels").textContent = "Cảm giác "+Math.round(c.apparent_temperature)+"°";
       $("wHum").textContent = "💧 "+c.relative_humidity_2m+"%";
       $("wWind").textContent = "💨 "+Math.round(c.wind_speed_10m)+" "+(cfg.unit==="C"?"km/h":"mph");
@@ -1227,7 +1227,10 @@ function askServer(payload, shownQ){
   ai.state="thinking"; aiOpen(); aiWave("think"); aiStatus("Đang tìm câu trả lời…");
   $("aiQ").textContent = shownQ ? "“"+shownQ+"”" : ""; $("aiA").textContent=""; $("aiSrc").textContent="";
   var tz="America/Chicago"; try{ tz=Intl.DateTimeFormat().resolvedOptions().timeZone||tz; }catch(e){}
-  payload.place=lastPlace; payload.tz=tz;
+  // Gửi tên nơi ở (nếu có) và toạ độ TV, để AI không đoán nhầm theo múi giờ (America/Chicago ≠ Chicago)
+  if(lastPlace && lastPlace!=="Vị trí hiện tại") payload.place=lastPlace;
+  if(lastCoords){ payload.lat=lastCoords.lat; payload.lon=lastCoords.lon; }
+  payload.tz=tz;
   var ctrl = window.AbortController ? new AbortController() : null;
   var to = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 30000);
   fetch(cfg.aiUrl, {method:"POST", headers:{"Content-Type":"application/json","X-App-Token":cfg.aiToken||""},
