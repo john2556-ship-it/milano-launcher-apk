@@ -359,6 +359,7 @@
         <div class="field"><label>Đọc to câu trả lời</label>
           <select id="sAiSpeak" class="focusable"><option value="1">Bật</option><option value="0">Tắt</option></select></div>
 
+        <div class="field full" style="opacity:.85;font-size:.9em" id="syncStatus">☁️ Cài đặt tự đồng bộ giữa Mac, box và stick</div>
         <div class="sec-title">Ứng dụng trên launcher (▲▼ đổi thứ tự · ✕ xóa)</div>
         <div class="field full"><div id="appList"></div></div>
         <div class="field"><label>Thêm app có sẵn</label><select id="sAddPreset" class="focusable"></select></div>
@@ -483,9 +484,45 @@ function load(){
        delete o.links; return o; }
   catch(e){ return Object.assign({}, DEFAULTS, {apps:defaultApps()}); }
 }
-function save(){
+function storeLocal(){
   try{ localStorage.setItem("tvlauncher_cfg", JSON.stringify(cfg)); return true; }
   catch(e){ toast("Không lưu được (bộ nhớ đầy). Hãy dùng ảnh nhỏ hơn."); return false; }
+}
+// Lưu do người dùng bấm (Lưu, dời/thêm/xoá thẻ, khôi phục): lưu trong máy rồi gửi lên để các máy khác nhận theo
+function save(){
+  if(!storeLocal()) return false;
+  syncPush(); return true;
+}
+
+/* ===== Đồng bộ cài đặt giữa các máy (Mac, box, stick) qua Worker milano-ai ===== */
+var syncTimer=null, syncMsg="";
+function syncUrl(){ try{ var u=new URL(cfg.aiUrl); u.pathname="/settings"; u.search=""; return u.toString(); }catch(e){ return ""; } }
+function syncShow(m){ syncMsg=m; var el=document.getElementById("syncStatus"); if(el) el.textContent=m; }
+function syncPush(){
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(function(){
+    var url=syncUrl(); if(!url) return;
+    var now=Date.now(), data=Object.assign({},cfg); delete data.syncedAt;
+    fetch(url,{method:"POST",headers:{"Content-Type":"application/json","X-App-Token":cfg.aiToken||""},body:JSON.stringify({updated:now,cfg:data})})
+    .then(function(r){ return r.json(); }).then(function(j){
+      if(j.ok){ cfg.syncedAt=now; storeLocal(); syncShow("☁️ Đã đồng bộ lên các máy khác lúc "+new Date(now).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})); }
+      else syncShow("⚠️ Đồng bộ: "+(j.error||"lỗi"));
+    }).catch(function(){ syncShow("⚠️ Đồng bộ: không kết nối được máy chủ"); });
+  },1200);
+}
+// Mở launcher: máy khác đã lưu bản mới hơn thì nhận theo rồi tải lại trang
+function syncPull(){
+  var url=syncUrl(); if(!url) return;
+  fetch(url+"?t="+encodeURIComponent(cfg.aiToken||""),{headers:{"X-App-Token":cfg.aiToken||""}})
+  .then(function(r){ return r.json(); }).then(function(j){
+    if(j.error){ syncShow("⚠️ Đồng bộ: "+j.error); return; }
+    if(!j.cfg || !j.updated){ syncShow("☁️ Đồng bộ đã bật"); syncPush(); return; }   // chưa có bản chung: gửi bản của máy này lên
+    if(j.updated <= (cfg.syncedAt||0)){ syncShow("☁️ Cài đặt đã đồng bộ"); return; }
+    if($("settings").classList.contains("open")) return;                          // đang sửa thì để lần sau
+    var next=Object.assign({}, j.cfg, {syncedAt:j.updated});
+    try{ localStorage.setItem("tvlauncher_cfg", JSON.stringify(next)); }catch(e){ return; }
+    location.reload();
+  }).catch(function(){});
 }
 var $ = function(id){ return document.getElementById(id); };
 
@@ -845,6 +882,7 @@ function keepInRow(el){
   appsEl.style.transform="translateX("+trackX+"px)";
 }
 renderApps();
+setTimeout(syncPull, 1500);   // nhận cài đặt mới từ máy khác (nếu có)
 // Mở Karaoke: máy chủ chạy ngay trong app Milano Launcher trên TV (Back trên remote để quay về)
 function openKaraoke(){
   var M=window.MilanoApp, u="";
