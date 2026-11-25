@@ -79,6 +79,7 @@ public class KaraokeServer {
 
     private final Assets assets;
     private final File stateFile;
+    private final File dataDir;
     private final String token;
     private final String appName;
     private int port;
@@ -95,7 +96,10 @@ public class KaraokeServer {
     private int volume = 80;
     private String brand1 = "MILANO", brand2 = "KARAOKE";
     private volatile boolean introOnStart = false;  // chạy màn chào đón khi mở Milano Launcher (mặc định tắt: chỉ chạy khi bấm thẻ Karaoke)
-    private String introStyle = "video";   // "video" = video chào đón; "effects" = hiệu ứng có tên tự đặt   // chạy màn chào đón khi mở app Milano Launcher   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
+    private String introStyle = "video";
+    private String brand3 = "";            // dòng 3 (chữ viết tay) trên intro
+    private boolean overlayText = false;   // hiện chữ lên video intro (tự bật khi dùng video của bạn)
+    private long introVer = 1;             // đổi mỗi lần tải video mới, để TV tải lại video   // "video" = video chào đón; "effects" = hiệu ứng có tên tự đặt   // chạy màn chào đón khi mở app Milano Launcher   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
     private boolean paused = false;
     private long seq = 1;
     private final LinkedList<Object[]> events = new LinkedList<>(); // {seq, role|null, msg}
@@ -108,6 +112,7 @@ public class KaraokeServer {
     public KaraokeServer(Assets assets, File dataDir, String appName) {
         this.assets = assets;
         this.appName = appName;
+        this.dataDir = dataDir;
         dataDir.mkdirs();
         this.stateFile = new File(dataDir, "karaoke_state.json");
         this.token = loadToken(new File(dataDir, "karaoke_token.txt"));
@@ -191,6 +196,13 @@ public class KaraokeServer {
                     try { len = Integer.parseInt(h.substring(c + 1).trim()); } catch (NumberFormatException ignored) { }
                 }
             }
+            int qi0 = target.indexOf('?');
+            if ("POST".equals(r.method) && (qi0 >= 0 ? target.substring(0, qi0) : target).equals("/api/intro-upload")) {
+                InetAddress a0 = sock.getInetAddress();
+                boolean ok = (a0 != null && a0.isLoopbackAddress()) || (qi0 >= 0 && target.substring(qi0).contains("t=" + token));
+                handleUpload(ok, in, len, sock.getOutputStream());
+                return;
+            }
             if (len > 0) {
                 len = Math.min(len, 64 * 1024);
                 byte[] b = new byte[len];
@@ -216,6 +228,43 @@ public class KaraokeServer {
             r.local = a != null && a.isLoopbackAddress();
             route(r, sock.getOutputStream());
         } catch (Exception ignored) { }
+    }
+
+    private static final long MAX_UPLOAD = 120L * 1024 * 1024;
+
+    private File customIntro() { return new File(dataDir, "intro_custom.mp4"); }
+
+    /** Nhận video intro từ điện thoại: ghi thẳng ra file (không giữ cả video trong bộ nhớ). */
+    private void handleUpload(boolean authorized, InputStream in, long len, OutputStream out) throws IOException {
+        try {
+            if (!authorized) { json(out, 403, "{\"error\":\"token\"}"); return; }
+            if (len <= 0 || len > MAX_UPLOAD) { json(out, 413, "{\"error\":\"Video quá lớn (tối đa 120MB)\"}"); return; }
+            File tmp = new File(dataDir, "intro_upload.tmp");
+            long got = 0;
+            try (FileOutputStream o = new FileOutputStream(tmp)) {
+                byte[] buf = new byte[65536];
+                while (got < len) {
+                    int n = in.read(buf, 0, (int) Math.min(buf.length, len - got));
+                    if (n < 0) break;
+                    o.write(buf, 0, n);
+                    got += n;
+                }
+            }
+            if (got < len) { tmp.delete(); json(out, 400, "{\"error\":\"Tải lên bị gián đoạn, thử lại\"}"); return; }
+            File dst = customIntro();
+            dst.delete();
+            if (!tmp.renameTo(dst)) { json(out, 500, "{\"error\":\"Không lưu được video\"}"); return; }
+            synchronized (lock) {
+                introVer = System.currentTimeMillis();
+                introStyle = "video";
+                overlayText = true;          // video của bạn thường chưa có chữ: tự bật chữ
+                changed();
+            }
+            event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
+            json(out, 200, "{\"ok\":true}");
+        } catch (JSONException e) {
+            json(out, 500, "{\"error\":\"json\"}");
+        }
     }
 
     private static String readLine(InputStream in) throws IOException {
@@ -308,7 +357,8 @@ public class KaraokeServer {
             while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
             String type = name.endsWith(".html") ? "text/html; charset=utf-8"
                     : name.endsWith(".js") ? "application/javascript; charset=utf-8"
-                    : name.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream";
+                    : name.endsWith(".svg") ? "image/svg+xml"
+                    : name.endsWith(".woff2") ? "font/woff2" : "application/octet-stream";
             respond(out, 200, type, b.toByteArray());
         } catch (IOException e) {
             respond(out, 404, "text/plain", "404".getBytes());
@@ -317,6 +367,8 @@ public class KaraokeServer {
 
     /** Phát video (intro) có hỗ trợ tải từng đoạn (Range) để trình phát của TV tua và phát mượt. */
     private void video(OutputStream out, String name, String range) throws IOException {
+        File custom = customIntro();
+        if (name.equals("intro.mp4") && custom.isFile() && custom.length() > 0) { videoFile(out, custom, range); return; }
         byte[] data = assetCache.get(name);
         if (data == null) {
             try (InputStream in = assets.open("karaoke/" + name)) {
@@ -346,6 +398,39 @@ public class KaraokeServer {
             } catch (NumberFormatException ignored) { }
         }
         respond(out, 200, "video/mp4", data, 0, total, "Accept-Ranges: bytes\r\n");
+    }
+
+    /** Phát video từ file (video intro của bạn), hỗ trợ tải từng đoạn. */
+    private void videoFile(OutputStream out, File f, String range) throws IOException {
+        long total = f.length(), start = 0, end = total - 1;
+        boolean partial = false;
+        if (range != null && range.startsWith("bytes=")) {
+            try {
+                String[] se = range.substring(6).split(",")[0].split("-", -1);
+                if (se[0].isEmpty()) { start = Math.max(0, total - Long.parseLong(se[1].trim())); }
+                else { start = Long.parseLong(se[0].trim()); if (se.length > 1 && !se[1].isEmpty()) end = Math.min(Long.parseLong(se[1].trim()), total - 1); }
+                partial = start <= end && start < total;
+                if (!partial) { start = 0; end = total - 1; }
+            } catch (NumberFormatException ignored) { start = 0; end = total - 1; }
+        }
+        long len = end - start + 1;
+        String head = "HTTP/1.1 " + (partial ? "206 Partial Content" : "200 OK") + "\r\n"
+                + "Content-Type: video/mp4\r\nAccept-Ranges: bytes\r\n"
+                + (partial ? "Content-Range: bytes " + start + "-" + end + "/" + total + "\r\n" : "")
+                + "Content-Length: " + len + "\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+        out.write(head.getBytes(StandardCharsets.UTF_8));
+        try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(f, "r")) {
+            raf.seek(start);
+            byte[] buf = new byte[65536];
+            long left = len;
+            while (left > 0) {
+                int n = raf.read(buf, 0, (int) Math.min(buf.length, left));
+                if (n < 0) break;
+                out.write(buf, 0, n);
+                left -= n;
+            }
+        }
+        out.flush();
     }
 
     // ================= Đồng bộ (long-poll) =================
@@ -402,6 +487,11 @@ public class KaraokeServer {
                 .put("brand2", brand2)
                 .put("introOnStart2", introOnStart)
                 .put("introStyle", introStyle)
+                .put("brand3", brand3)
+                .put("overlayText", overlayText)
+                .put("introVer", introVer)
+                .put("customIntro", customIntro().isFile())
+                .put("customIntroMB", Math.round(customIntro().length() / 104857.6) / 10.0)
                 .put("volume", volume)
                 .put("paused", paused);
     }
@@ -500,7 +590,20 @@ public class KaraokeServer {
                 synchronized (lock) {
                     brand1 = clip(m.optString("brand1"), 24);
                     brand2 = clip(m.optString("brand2"), 24);
+                    if (m.has("brand3")) brand3 = clip(m.optString("brand3"), 40);
                     if (brand1.isEmpty() && brand2.isEmpty()) { brand1 = "MILANO"; brand2 = "KARAOKE"; }
+                    changed();
+                }
+                event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
+                break;
+            case "setOverlay":
+                synchronized (lock) { overlayText = m.optBoolean("on"); changed(); }
+                break;
+            case "resetIntroVideo":
+                synchronized (lock) {
+                    customIntro().delete();
+                    introVer = System.currentTimeMillis();
+                    overlayText = false;     // video mặc định đã có chữ sẵn
                     changed();
                 }
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
@@ -765,6 +868,9 @@ public class KaraokeServer {
             volume = s.optInt("volume", 80);
             introOnStart = s.optBoolean("introOnStart2", false);   // khoá mới: bản cũ đang bật sẵn thì về tắt
             introStyle = "effects".equals(s.optString("introStyle")) ? "effects" : "video";
+            brand3 = s.optString("brand3", "");
+            overlayText = s.optBoolean("overlayText", false);
+            introVer = s.optLong("introVer", 1);
             if (s.has("brand1") || s.has("brand2")) { brand1 = s.optString("brand1"); brand2 = s.optString("brand2"); }
             JSONArray q = s.optJSONArray("queue"), h = s.optJSONArray("history");
             JSONArray sg = s.optJSONArray("singers");
