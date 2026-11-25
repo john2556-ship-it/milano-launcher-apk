@@ -676,11 +676,27 @@ function getCoords(cb){
     try{
       navigator.geolocation.getCurrentPosition(function(p){
         if(done) return; done=true;
-        cb({name:"Vị trí hiện tại", lat:p.coords.latitude, lon:p.coords.longitude});
+        placeName(p.coords.latitude, p.coords.longitude, function(name){
+          cb({name:name||"Vị trí hiện tại", lat:p.coords.latitude, lon:p.coords.longitude});
+        });
       }, fallback, {timeout:6000, maximumAge:3600000});
       setTimeout(fallback, 7000);
     }catch(e){ fallback(); }
   } else fallback();
+}
+// Đổi toạ độ ra tên thành phố (vd. "Cypress, TX"); lưu lại theo toạ độ để không hỏi lại mỗi lần
+function placeName(lat, lon, cb){
+  var key="mlPlace:"+lat.toFixed(2)+","+lon.toFixed(2), done=false;
+  try{ var c=localStorage.getItem(key); if(c){ cb(c); return; } }catch(e){}
+  var finish=function(n){ if(done) return; done=true; cb(n); };
+  setTimeout(function(){ finish(""); }, 4000);
+  fetch("https://api.bigdatacloud.net/data/reverse-geocode-client?latitude="+lat+"&longitude="+lon+"&localityLanguage=en")
+  .then(function(r){return r.json();}).then(function(j){
+    var city=j.city||j.locality||"", st=(j.principalSubdivisionCode||"").split("-").pop();
+    var n=city ? city+(st && j.countryCode==="US" ? ", "+st : (j.countryName ? ", "+j.countryName : "")) : "";
+    if(n){ try{ localStorage.setItem(key,n); }catch(e){} }
+    finish(n);
+  }).catch(function(){ finish(""); });
 }
 function ipLocate(cb){
   fetch("https://ipapi.co/json/").then(function(r){return r.json();}).then(function(j){
