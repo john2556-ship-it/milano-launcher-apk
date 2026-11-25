@@ -94,11 +94,13 @@ public class KaraokeServer {
     private final List<JSONObject> history = new ArrayList<>();
     private final List<String> singers = new ArrayList<>();   // danh sách tên người hát (dùng chung mọi điện thoại)
     private int volume = 80;
-    private String brand1 = "MILANO", brand2 = "KARAOKE";
+    // 3 dòng chữ trên intro (đổi được trong Cài đặt trên điện thoại)
+    static final String D1 = "CHÀO MỪNG BẠN", D2 = "ĐẾN VỚI PHÒNG KARAOKE", D3 = "Cùng Hát Cho Nhau Nghe";
+    private String brand1 = D1, brand2 = D2;
     private volatile boolean introOnStart = false;  // chạy màn chào đón khi mở Milano Launcher (mặc định tắt: chỉ chạy khi bấm thẻ Karaoke)
     private String introStyle = "video";
-    private String brand3 = "";            // dòng 3 (chữ viết tay) trên intro
-    private boolean overlayText = false;   // hiện chữ lên video intro (tự bật khi dùng video của bạn)
+    private String brand3 = D3;            // dòng 3 (chữ viết tay) trên intro
+    private boolean overlayText = true;    // hiện chữ lên video intro (video mặc định không có chữ)
     private long introVer = 1;             // đổi mỗi lần tải video mới, để TV tải lại video   // "video" = video chào đón; "effects" = hiệu ứng có tên tự đặt   // chạy màn chào đón khi mở app Milano Launcher   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
     private boolean paused = false;
     private long seq = 1;
@@ -318,9 +320,7 @@ public class KaraokeServer {
         try {
             switch (p) {
                 case "/api/info":
-                    String nm;
-                    synchronized (lock) { nm = (brand1 + " " + brand2).trim(); }
-                    json(out, 200, new JSONObject().put("name", nm.isEmpty() ? appName : nm).put("remoteUrl", remoteUrl()));
+                    json(out, 200, new JSONObject().put("name", appName).put("remoteUrl", remoteUrl()));
                     return;
                 case "/api/poll":
                     json(out, 200, poll(parseLong(r.q.get("since"), -1), r.q.get("role")));
@@ -488,7 +488,7 @@ public class KaraokeServer {
                 .put("introOnStart2", introOnStart)
                 .put("introStyle", introStyle)
                 .put("brand3", brand3)
-                .put("overlayText", overlayText)
+                .put("overlayText2", overlayText)
                 .put("introVer", introVer)
                 .put("customIntro", customIntro().isFile())
                 .put("customIntroMB", Math.round(customIntro().length() / 104857.6) / 10.0)
@@ -591,7 +591,7 @@ public class KaraokeServer {
                     brand1 = clip(m.optString("brand1"), 24);
                     brand2 = clip(m.optString("brand2"), 24);
                     if (m.has("brand3")) brand3 = clip(m.optString("brand3"), 40);
-                    if (brand1.isEmpty() && brand2.isEmpty()) { brand1 = "MILANO"; brand2 = "KARAOKE"; }
+                    if (brand1.isEmpty() && brand2.isEmpty() && brand3.isEmpty()) { brand1 = D1; brand2 = D2; brand3 = D3; }
                     changed();
                 }
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
@@ -603,7 +603,7 @@ public class KaraokeServer {
                 synchronized (lock) {
                     customIntro().delete();
                     introVer = System.currentTimeMillis();
-                    overlayText = false;     // video mặc định đã có chữ sẵn
+                    overlayText = true;      // video mặc định không có chữ: hiện chữ
                     changed();
                 }
                 event("tv", new JSONObject().put("type", "cmd").put("cmd", "intro"));
@@ -868,10 +868,13 @@ public class KaraokeServer {
             volume = s.optInt("volume", 80);
             introOnStart = s.optBoolean("introOnStart2", false);   // khoá mới: bản cũ đang bật sẵn thì về tắt
             introStyle = "effects".equals(s.optString("introStyle")) ? "effects" : "video";
-            brand3 = s.optString("brand3", "");
-            overlayText = s.optBoolean("overlayText", false);
+            brand3 = s.optString("brand3", D3);
+            overlayText = s.optBoolean("overlayText2", true);
             introVer = s.optLong("introVer", 1);
             if (s.has("brand1") || s.has("brand2")) { brand1 = s.optString("brand1"); brand2 = s.optString("brand2"); }
+            // Bản cũ còn tên mặc định MILANO / KARAOKE: chuyển sang chữ intro mặc định mới
+            if ("MILANO".equals(brand1) && "KARAOKE".equals(brand2) && (!s.has("brand3") || brand3.isEmpty())) { brand1 = D1; brand2 = D2; brand3 = D3; }
+            if (brand3.isEmpty() && D1.equals(brand1) && D2.equals(brand2)) brand3 = D3;
             JSONArray q = s.optJSONArray("queue"), h = s.optJSONArray("history");
             JSONArray sg = s.optJSONArray("singers");
             if (sg != null) for (int i = 0; i < sg.length(); i++) if (!sg.optString(i).isEmpty()) singers.add(sg.optString(i));

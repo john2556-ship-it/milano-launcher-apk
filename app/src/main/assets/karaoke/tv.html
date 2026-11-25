@@ -389,7 +389,7 @@ function playIntro() {
 function showIntroText() {
   const st = state || {}, tx = $('introText');
   const lines = [st.brand1 || '', st.brand2 || '', st.brand3 || ''];
-  if (!st.overlayText || !lines.some(Boolean)) { tx.classList.add('hide'); return false; }
+  if (st.overlayText2 === false || !lines.some(Boolean)) { tx.classList.add('hide'); return false; }
   const size = (t, max, k) => Math.min(max, k / Math.max([...t].length, 1)) + 'vw';
   // Dòng 1-2: chữ vàng kim, chữ cuối màu xanh ngọc (giống video mẫu)
   const goldTeal = t => {
@@ -553,6 +553,8 @@ let since = -1;
       const j = await r.json();
       since = j.seq; state = j.state; gotState = true;
       setBrand(state.brand1 ?? 'MILANO', state.brand2 ?? 'KARAOKE');
+      // Chữ intro đã có "Chào mừng…" thì bỏ dòng "Chào mừng đến với" nhỏ trên màn chờ cho khỏi lặp
+      document.querySelector('#idle .hello').style.display = /CHÀO MỪNG/i.test(state.brand1 || '') ? 'none' : '';
       sync();
       (j.events || []).forEach(onEvent);
     } catch (_) { await sleep(2000); }

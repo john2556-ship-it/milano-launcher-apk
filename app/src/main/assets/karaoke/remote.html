@@ -215,10 +215,10 @@
       <label class="chk" style="margin-top:12px"><input type="checkbox" id="overlayOn"> Hiện chữ lên video (hiệu ứng zoom in)</label>
     </div>
 
-    <div class="sub" style="margin-top:16px">Chữ chào đón <span style="opacity:.7">(font &amp; màu tự động)</span></div>
-    <input id="brand1" placeholder="Dòng 1 · chữ vàng lớn (vd: CHÀO MỪNG BẠN)" maxlength="24" style="margin-top:8px">
-    <input id="brand2" placeholder="Dòng 2 · chữ neon (vd: MILANO KARAOKE)" maxlength="24" style="margin-top:8px">
-    <input id="brand3" placeholder="Dòng 3 · chữ viết tay (vd: Cùng hát cho nhau nghe)" maxlength="40" style="margin-top:8px">
+    <div class="sub" style="margin-top:16px">Chữ chào đón <span style="opacity:.7">(font, màu &amp; hiệu ứng tự động · xoá hết 3 dòng rồi Lưu = về mặc định)</span></div>
+    <input id="brand1" placeholder="Dòng 1 · chữ vàng lớn (mặc định: CHÀO MỪNG BẠN)" maxlength="24" style="margin-top:8px">
+    <input id="brand2" placeholder="Dòng 2 · chữ vàng nhỏ hơn (mặc định: ĐẾN VỚI PHÒNG KARAOKE)" maxlength="24" style="margin-top:8px">
+    <input id="brand3" placeholder="Dòng 3 · chữ viết tay (mặc định: Cùng Hát Cho Nhau Nghe)" maxlength="40" style="margin-top:8px">
     <label class="chk" style="margin-top:14px"><input type="checkbox" id="introStart"> Chạy màn chào đón khi mở Milano Launcher</label>
     <div class="row">
       <button class="primary" id="btnBrand">Lưu &amp; xem trên TV</button>
@@ -287,7 +287,7 @@ $('singerDel').onclick = () => {
 
 // ---- Màn chào đón trên điện thoại: hiện trong lúc đang kết nối với TV ----
 (function splash() {
-  const b1 = localStorage.getItem('brand1') || 'MILANO', b2 = localStorage.getItem('brand2') ?? 'KARAOKE';
+  const b1 = 'MILANO', b2 = 'KARAOKE';   // tên app cố định (chữ intro trên TV đổi riêng trong Cài đặt)
   const ch = [...b1];
   $('sp1').innerHTML = ch.map((c, i) => `<span style="animation-delay:${(.1 + i * Math.min(.1, 1 / ch.length)).toFixed(2)}s">${c === ' ' ? '&nbsp;' : esc(c)}</span>`).join('');
   $('sp1').style.fontSize = Math.min(64, 560 / Math.max(ch.length, 1)) + 'px';
@@ -346,7 +346,6 @@ async function poll() {
       const j = await r.json();
       $('conn').classList.add('hide');
       since = j.seq; state = j.state; render(); hideSplash();
-      if (state.brand1 != null) { localStorage.setItem('brand1', state.brand1); localStorage.setItem('brand2', state.brand2 || ''); }
       (j.events || []).forEach(m => { if (m.type === 'toast') toast(m.msg); });
     } catch (_) {
       $('conn').classList.remove('hide');
@@ -371,10 +370,10 @@ function render() {
   $('vidBox').style.display = (state.introStyle || 'video') === 'video' ? '' : 'none';
   if (!uploading) $('vidInfo').textContent = state.customIntro ? `Đang dùng: 🎞 video của bạn (${state.customIntroMB} MB)` : 'Đang dùng: video mặc định';
   $('vidResetRow').style.display = state.customIntro ? '' : 'none';
-  $('overlayOn').checked = !!state.overlayText;
+  $('overlayOn').checked = state.overlayText2 !== false;
   const bn = [state.brand1, state.brand2].filter(Boolean).join(' ');
   if (bn && bn !== brandShown) {
-    brandShown = bn; $('appName').textContent = bn; document.title = bn;
+    brandShown = bn;
     if (![$('brand1'), $('brand2'), $('brand3')].includes(document.activeElement)) {
       $('brand1').value = state.brand1 || ''; $('brand2').value = state.brand2 || ''; $('brand3').value = state.brand3 || '';
     }
