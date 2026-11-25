@@ -94,7 +94,7 @@ public class KaraokeServer {
     private final List<String> singers = new ArrayList<>();   // danh sách tên người hát (dùng chung mọi điện thoại)
     private int volume = 80;
     private String brand1 = "MILANO", brand2 = "KARAOKE";
-    private volatile boolean introOnStart = true;
+    private volatile boolean introOnStart = false;  // chạy màn chào đón khi mở Milano Launcher (mặc định tắt: chỉ chạy khi bấm thẻ Karaoke)
     private String introStyle = "video";   // "video" = video chào đón; "effects" = hiệu ứng có tên tự đặt   // chạy màn chào đón khi mở app Milano Launcher   // 2 dòng chữ màn chào đón (đổi được trên điện thoại)
     private boolean paused = false;
     private long seq = 1;
@@ -400,7 +400,7 @@ public class KaraokeServer {
                 .put("singers", new JSONArray(singers))
                 .put("brand1", brand1)
                 .put("brand2", brand2)
-                .put("introOnStart", introOnStart)
+                .put("introOnStart2", introOnStart)
                 .put("introStyle", introStyle)
                 .put("volume", volume)
                 .put("paused", paused);
@@ -763,7 +763,7 @@ public class KaraokeServer {
             JSONObject s = new JSONObject(b.toString("UTF-8"));
             current = s.optJSONObject("current");
             volume = s.optInt("volume", 80);
-            introOnStart = s.optBoolean("introOnStart", true);
+            introOnStart = s.optBoolean("introOnStart2", false);   // khoá mới: bản cũ đang bật sẵn thì về tắt
             introStyle = "effects".equals(s.optString("introStyle")) ? "effects" : "video";
             if (s.has("brand1") || s.has("brand2")) { brand1 = s.optString("brand1"); brand2 = s.optString("brand2"); }
             JSONArray q = s.optJSONArray("queue"), h = s.optJSONArray("history");
