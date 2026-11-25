@@ -1227,6 +1227,24 @@ function encodeWav(chunks, inRate, outRate){
   for(var x=0;x<bytes.length;x+=CH) bin+=String.fromCharCode.apply(null, bytes.subarray(x,x+CH));
   return btoa(bin);
 }
+// App mở được: app đã cài trên TV + thẻ Karaoke của launcher
+function tvAppList(){
+  var list=[];
+  try{ if(window.MilanoApp && MilanoApp.getApps) list=JSON.parse(MilanoApp.getApps()); }catch(e){}
+  list=list.filter(function(x){ return x && x.name; }).slice(0,150);
+  list.push({name:"Karaoke", karaoke:true});
+  return list;
+}
+function openByName(name){
+  var n=String(name||"").trim().toLowerCase(); if(!n) return false;
+  var list=tvAppList();
+  var hit=list.filter(function(x){ return x.name.toLowerCase()===n; })[0] ||
+          list.filter(function(x){ return x.name.toLowerCase().indexOf(n)>=0 || n.indexOf(x.name.toLowerCase())>=0; })[0];
+  if(!hit) return false;
+  if(hit.karaoke){ setTimeout(openKaraoke, 400); return true; }
+  try{ if(window.MilanoApp && MilanoApp.openApp){ setTimeout(function(){ MilanoApp.openApp(hit.pkg); }, 400); return true; } }catch(e){}
+  return false;
+}
 function askServer(payload, shownQ){
   ai.state="thinking"; aiOpen(); aiWave("think"); aiStatus("Đang tìm câu trả lời…");
   $("aiQ").textContent = shownQ ? "“"+shownQ+"”" : ""; $("aiA").textContent=""; $("aiSrc").textContent="";
@@ -1235,6 +1253,8 @@ function askServer(payload, shownQ){
   if(lastPlace && lastPlace!=="Vị trí hiện tại") payload.place=lastPlace;
   if(lastCoords){ payload.lat=lastCoords.lat; payload.lon=lastCoords.lon; }
   payload.tz=tz;
+  // Danh sách app trên TV để AI mở đúng app khi nghe "mở …" (thay vì tìm trên YouTube)
+  var tvApps=tvAppList(); if(tvApps.length) payload.apps=tvApps.map(function(x){ return x.name; });
   var ctrl = window.AbortController ? new AbortController() : null;
   var to = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 30000);
   fetch(cfg.aiUrl, {method:"POST", headers:{"Content-Type":"application/json","X-App-Token":cfg.aiToken||""},
@@ -1244,6 +1264,11 @@ function askServer(payload, shownQ){
     clearTimeout(to);
     if(j.error) throw new Error(j.error);
     aiWave(""); aiStatus("");
+    if(j.open && openByName(j.open)){       // lệnh mở app
+      if(j.question) $("aiQ").textContent="“"+j.question+"”";
+      $("aiA").textContent="📲 Đang mở "+j.open+"…"; $("aiSrc").textContent="";
+      ai.state="idle"; aiAutoClose(); return;
+    }
     if(j.question) $("aiQ").textContent="“"+j.question+"”";
     $("aiA").textContent=j.answer||"";
     $("aiSrc").textContent = (j.sources&&j.sources.length) ? "Nguồn: "+j.sources.join(" · ") : "";
