@@ -130,20 +130,21 @@
 
   /* ===== Chữ đặt lên video intro: hiệu ứng zoom in ===== */
   #introText{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;
-             text-align:center;pointer-events:none;transition:opacity .6s;padding:0 4vw;
+             text-align:center;pointer-events:none;transition:opacity .6s;padding:0 4vw 16vh;   /* chữ cao hơn giữa: chừa chỗ micro ở dưới */
              background:radial-gradient(60% 50% at 50% 50%,rgba(0,0,0,.35),transparent 75%)}
   #introText.fade{opacity:0}
   #introText .l{opacity:0;will-change:transform,opacity,filter}
   /* Kiểu chữ mặc định giống video mẫu: vàng kim nổi, chữ cuối xanh ngọc, dòng 3 viết tay vàng */
   #introText .l1,#introText .l2{font-family:'MKDisplay',sans-serif;font-weight:900;text-transform:uppercase;letter-spacing:.15vw;line-height:1.3;
-       filter:drop-shadow(0 .16vw 0 #5a3405) drop-shadow(0 .35vw .25vw rgba(40,18,0,.85)) drop-shadow(0 0 1.6vw rgba(255,200,90,.35))}
+       filter:drop-shadow(0 .14vw 0 #4a3424) drop-shadow(0 .3vw .25vw rgba(30,18,10,.85)) drop-shadow(0 0 1.4vw rgba(240,218,180,.3))}
   #introText .l2{margin-top:.2vw}
   #introText .g,#introText .t{-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  #introText .g{color:#f2c76b;background-image:linear-gradient(180deg,#fff7d6 0%,#ffe39a 28%,#f0b955 52%,#b9741f 78%,#f7d98c 100%)}
-  #introText .t{color:#5fd6e0;background-image:linear-gradient(180deg,#e9fdff 0%,#9eeef5 30%,#3cc3d3 58%,#16798c 82%,#8ce6ef 100%)}
+  /* Màu lấy từ video mẫu: vàng sâm panh dịu + xanh ngọc nhạt pha bạc */
+  #introText .g{color:#dec29a;background-image:linear-gradient(180deg,#fbf1dc 0%,#f0dab4 26%,#dec29a 50%,#b49c7d 76%,#ead5b0 100%)}
+  #introText .t{color:#8fd0ce;background-image:linear-gradient(180deg,#eef9f6 0%,#b1d3cb 30%,#8fd0ce 55%,#6f9e96 80%,#c6e6df 100%)}
   #introText .l3{font-family:'MKScript',cursive;font-weight:700;margin-top:.6vw;position:relative;
-       filter:drop-shadow(0 .12vw 0 #5a3405) drop-shadow(0 0 1.2vw rgba(255,215,130,.6))}
-  #introText .l3 .g{background-image:linear-gradient(180deg,#fffbe8 0%,#ffe7a8 40%,#e9b45a 75%,#fff1c4 100%)}
+       filter:drop-shadow(0 .12vw 0 #4a3930) drop-shadow(0 .25vw .2vw rgba(30,18,10,.7)) drop-shadow(0 0 1vw rgba(240,220,200,.45))}
+  #introText .l3 .g{background-image:linear-gradient(180deg,#fff7ee 0%,#f1e0cf 35%,#dcc6b1 65%,#b29882 92%)}   /* kem hồng */
   /* Dải sáng uốn lượn quanh dòng 3 */
   #ribbons{position:absolute;left:50%;width:78vw;height:22vw;transform:translateX(-50%);pointer-events:none;opacity:0}
   #ribbons path{fill:none;stroke-linecap:round;stroke-dasharray:1600;stroke-dashoffset:1600}
@@ -156,7 +157,7 @@
   @keyframes draw{to{stroke-dashoffset:0}}
   /* Nốt nhạc + lấp lánh quanh chữ */
   #introText .fx{position:absolute;inset:0;pointer-events:none}
-  #introText .nt{position:absolute;color:#ffd77a;opacity:0;text-shadow:0 0 .8vw rgba(255,200,90,.9)}
+  #introText .nt{position:absolute;color:#f0dab4;opacity:0;text-shadow:0 0 .8vw rgba(240,210,160,.9)}
   #introText.go .nt{animation:ntIn 1s both, ntFloat 3s ease-in-out infinite alternate}
   @keyframes ntIn{from{opacity:0;transform:scale(.3) rotate(-30deg)}to{opacity:.95;transform:scale(1)}}
   @keyframes ntFloat{from{translate:0 0}to{translate:0 -1.2vw}}
@@ -240,9 +241,9 @@
   <div class="l l3" id="it3wrap" style="position:relative">
     <svg id="ribbons" viewBox="0 0 1000 280" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="rg1" x1="0" x2="1"><stop offset="0" stop-color="#ff6fb5" stop-opacity="0"/><stop offset=".3" stop-color="#ff6fb5"/><stop offset=".7" stop-color="#c77dff"/><stop offset="1" stop-color="#c77dff" stop-opacity="0"/></linearGradient>
-        <linearGradient id="rg2" x1="0" x2="1"><stop offset="0" stop-color="#5fe3f0" stop-opacity="0"/><stop offset=".4" stop-color="#5fe3f0"/><stop offset="1" stop-color="#9ef7ff" stop-opacity="0"/></linearGradient>
-        <linearGradient id="rg3" x1="0" x2="1"><stop offset="0" stop-color="#ffd77a" stop-opacity="0"/><stop offset=".5" stop-color="#fff1c4"/><stop offset="1" stop-color="#ffd77a" stop-opacity="0"/></linearGradient>
+        <linearGradient id="rg1" x1="0" x2="1"><stop offset="0" stop-color="#e7a6c8" stop-opacity="0"/><stop offset=".3" stop-color="#e7a6c8"/><stop offset=".7" stop-color="#b9a0e0"/><stop offset="1" stop-color="#b9a0e0" stop-opacity="0"/></linearGradient>
+        <linearGradient id="rg2" x1="0" x2="1"><stop offset="0" stop-color="#8fd0ce" stop-opacity="0"/><stop offset=".4" stop-color="#a9e3df"/><stop offset="1" stop-color="#c6e6df" stop-opacity="0"/></linearGradient>
+        <linearGradient id="rg3" x1="0" x2="1"><stop offset="0" stop-color="#f0dab4" stop-opacity="0"/><stop offset=".5" stop-color="#fbf1dc"/><stop offset="1" stop-color="#f0dab4" stop-opacity="0"/></linearGradient>
         <filter id="rglow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       </defs>
       <path d="M30 200 C 220 300, 640 290, 900 170 S 990 60, 760 70" stroke="url(#rg1)" stroke-width="5" filter="url(#rglow)"/>
