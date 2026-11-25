@@ -446,7 +446,7 @@ var CATALOG = [
   {name:"Downloader", sub:"Tải file & APK", pkg:"com.esaba.downloader", color:"c-orange", icon:"folder"},
   {name:"Cài đặt", sub:"Cài đặt hệ thống TV", link:"intent:#Intent;action=android.settings.SETTINGS;end", color:"c-set", icon:"gear"}
 ];
-var DEFAULT_APPS = ["YouTube","Hỏi AI","Karaoke","Gemini","Netflix","YouTube Music","Cài đặt"];
+var DEFAULT_APPS = ["YouTube","Hỏi AI","Karaoke","Netflix","YouTube Music","Cài đặt"];
 function defaultApps(){ return DEFAULT_APPS.map(function(n){ return Object.assign({}, CATALOG.filter(function(c){return c.name===n;})[0]); }); }
 function appLink(a){
   if(a.link) return a.link;
@@ -455,7 +455,7 @@ function appLink(a){
 }
 function esc(t){ return String(t||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
 
-var DEFAULTS = {title:"Milano Nail Spa Elyson", bgUrl:BG_PRESETS[0].url, bgData:"", loc:"auto", unit:"F", sjcUrl:"", apps:null, aiUrl:"https://milano-ai.john2556.workers.dev", aiToken:"milano2026", aiSpeak:true, aiAdded:false, karaokeAdded:false};
+var DEFAULTS = {title:"Milano Nail Spa Elyson", bgUrl:BG_PRESETS[0].url, bgData:"", loc:"auto", unit:"F", sjcUrl:"", apps:null, aiUrl:"https://milano-ai.john2556.workers.dev", aiToken:"milano2026", aiSpeak:true, aiAdded:false, karaokeAdded:false, geminiRemoved:false};
 var cfg = load();
 
 function load(){
@@ -475,6 +475,10 @@ function load(){
            o.apps.splice(ai<0?1:ai+1,0,Object.assign({},CATALOG.filter(function(c){return c.action==="karaoke";})[0]));
          }
          o.karaokeAdded=true;
+       }
+       if(!o.geminiRemoved){   // bỏ thẻ Gemini (trợ lý Google TV hay mở YouTube); hỏi đáp dùng thẻ Hỏi AI
+         o.apps=o.apps.filter(function(a){ return !/VOICE_ASSIST/.test(a.link||""); });
+         o.geminiRemoved=true;
        }
        delete o.links; return o; }
   catch(e){ return Object.assign({}, DEFAULTS, {apps:defaultApps()}); }
