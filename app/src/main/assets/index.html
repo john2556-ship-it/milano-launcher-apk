@@ -502,13 +502,29 @@ function syncPush(){
   clearTimeout(syncTimer);
   syncTimer=setTimeout(function(){
     var url=syncUrl(); if(!url) return;
+    // Kiểm tra trước: nếu máy khác đã lưu bản mới hơn bản máy này đang có thì KHÔNG ghi đè,
+    // mà nhận bản mới đó (tránh TV cũ đè mất hình nền vừa đổi trên Mac).
+    fetch(url+"?t="+encodeURIComponent(cfg.aiToken||""),{headers:{"X-App-Token":cfg.aiToken||""}})
+    .then(function(r){ return r.json(); }).then(function(j){
+      if(j && j.cfg && j.updated && j.updated > (cfg.syncedAt||0)){
+        var next=Object.assign({}, j.cfg, {syncedAt:j.updated});
+        try{ localStorage.setItem("tvlauncher_cfg", JSON.stringify(next)); }
+        catch(e){ syncShow("⚠️ Đồng bộ: máy này không đủ chỗ lưu cài đặt mới (hình nền quá lớn?)"); return; }
+        toast("Máy khác vừa đổi cài đặt — đã lấy bản mới, bạn sửa lại nếu cần");
+        setTimeout(function(){ location.reload(); }, 1800);
+        return;
+      }
+      doPush(url);
+    }).catch(function(){ syncShow("⚠️ Đồng bộ: không kết nối được máy chủ"); });
+  },1200);
+}
+function doPush(url){
     var now=Date.now(), data=Object.assign({},cfg); delete data.syncedAt;
     fetch(url,{method:"POST",headers:{"Content-Type":"application/json","X-App-Token":cfg.aiToken||""},body:JSON.stringify({updated:now,cfg:data})})
     .then(function(r){ return r.json(); }).then(function(j){
       if(j.ok){ cfg.syncedAt=now; storeLocal(); syncShow("☁️ Đã đồng bộ lên các máy khác lúc "+new Date(now).toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})); }
       else syncShow("⚠️ Đồng bộ: "+(j.error||"lỗi"));
     }).catch(function(){ syncShow("⚠️ Đồng bộ: không kết nối được máy chủ"); });
-  },1200);
 }
 // Mở launcher: máy khác đã lưu bản mới hơn thì nhận theo rồi tải lại trang
 function syncPull(){
@@ -1111,10 +1127,10 @@ $("sBgFile").addEventListener("change", function(){
   rd.onload=function(){
     var img=new Image();
     img.onload=function(){
-      var s=Math.min(1, 1920/img.width), c=document.createElement("canvas");
+      var s=Math.min(1, 1600/img.width), c=document.createElement("canvas");
       c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
       c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-      pendingBgData=c.toDataURL("image/jpeg",0.85);
+      pendingBgData=c.toDataURL("image/jpeg",0.8);
       $("bg").style.backgroundImage='url("'+pendingBgData+'")';
       toast("Đã chọn ảnh — nhấn Lưu để giữ lại");
     };
