@@ -441,8 +441,10 @@ function effectsIntro() {
   jingle();
   introTimer = setTimeout(finishIntro, INTRO_ONLY ? 4300 : 4500);
 }
+let introAt = 0;
 function begin() {
   if (started || introPlaying) return;
+  introAt = Date.now();
   $('start').classList.add('hide');
   playIntro();
 }
@@ -450,7 +452,9 @@ $('startBtn').onclick = begin;
 // Trong app Milano Launcher thì TV đã cho phép tự phát có tiếng: bỏ qua màn "Bấm OK".
 // Chờ lấy tên đã lưu từ máy chủ (tối đa 1,5 giây) rồi mới chạy màn chào đón.
 let gotState = false;
-if (/MilanoLauncher/.test(navigator.userAgent)) {
+// Vào Karaoke: hiện màn "Bấm OK để bắt đầu", bấm OK trên remote mới chạy intro.
+// Riêng màn chào đón lúc mở Milano Launcher (nếu bật) thì tự chạy.
+if (INTRO_ONLY && /MilanoLauncher/.test(navigator.userAgent)) {
   const wait = Date.now();
   (function go() { if (gotState || Date.now() - wait > 1500) begin(); else setTimeout(go, 50); })();
 }
@@ -604,7 +608,8 @@ function addFocused() {
 
 document.addEventListener('keydown', e => {
   const k = e.key;
-  if (introPlaying || INTRO_ONLY) { if (k === 'Enter' || k === ' ') { e.preventDefault(); finishIntro(); } return; }   // OK: bỏ qua chào đón
+  // OK: bỏ qua chào đón (bỏ qua lần bấm OK vừa dùng để bắt đầu, tránh lỡ tay bỏ qua intro)
+  if (introPlaying || INTRO_ONLY) { if ((k === 'Enter' || k === ' ') && Date.now() - introAt > 1200) { e.preventDefault(); finishIntro(); } else if (k === 'Enter' || k === ' ') e.preventDefault(); return; }
   if (!started) { if (k === 'Enter' || k === ' ') { e.preventDefault(); begin(); } return; }
 
   if (!$('tvs').classList.contains('hide')) {
