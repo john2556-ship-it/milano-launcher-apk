@@ -713,7 +713,10 @@ function loadWeather(){
           '</div><div class="t">'+Math.round(j.daily.temperature_2m_max[i])+'° <span>'+Math.round(j.daily.temperature_2m_min[i])+'°</span></div></div>';
       }
       $("forecast").innerHTML = html;
-    }).catch(function(){ $("wDesc").textContent="Không tải được thời tiết"; });
+    }).catch(function(){
+      // Lần tải lại bị lỗi (mạng chập chờn): giữ số liệu đang hiện, chỉ báo lỗi khi chưa có gì
+      if(!$("forecast").innerHTML) $("wDesc").textContent="Không tải được thời tiết";
+    });
   });
 }
 loadWeather(); setInterval(loadWeather, 15*60*1000);
