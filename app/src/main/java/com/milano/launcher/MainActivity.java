@@ -118,8 +118,28 @@ public class MainActivity extends Activity {
         if (karaoke == null) {
             final android.content.Context app = getApplicationContext();
             karaoke = new KaraokeServer(name -> app.getAssets().open(name), app.getFilesDir(), "MILANO KARAOKE");
+            karaoke.setIpSource(() -> activeIp(app));
         }
         return karaoke;
+    }
+
+    /**
+     * IP của TV trong mạng đang dùng thật sự (Wi-Fi hoặc dây), hỏi thẳng Android.
+     * Giống cách các app karaoke khác làm, tránh lấy nhầm card mạng phụ.
+     */
+    private static String activeIp(android.content.Context ctx) {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) ctx.getSystemService(CONNECTIVITY_SERVICE);
+            android.net.Network n = cm.getActiveNetwork();
+            if (n == null) return null;
+            android.net.LinkProperties lp = cm.getLinkProperties(n);
+            if (lp == null) return null;
+            for (android.net.LinkAddress la : lp.getLinkAddresses()) {
+                java.net.InetAddress a = la.getAddress();
+                if (a instanceof java.net.Inet4Address && !a.isLoopbackAddress()) return a.getHostAddress();
+            }
+        } catch (Exception ignored) { }
+        return null;
     }
 
     /** Mở cổng 8686 ở luồng nền để điện thoại vào được ngay khi launcher chạy. */

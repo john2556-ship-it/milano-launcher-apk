@@ -199,7 +199,7 @@ function loadInfo() {
   }).catch(() => setTimeout(loadInfo, 3000));
 }
 loadInfo();
-setInterval(loadInfo, 5 * 60 * 1000);   // đổi Wi-Fi / IP thì mã QR tự cập nhật
+setInterval(loadInfo, 60 * 1000);   // đổi Wi-Fi / IP thì mã QR tự cập nhật (mỗi phút)
 
 // ---------- Bắt đầu (1 lần bấm cho phép tự phát có tiếng) ----------
 $('startBtn').focus();

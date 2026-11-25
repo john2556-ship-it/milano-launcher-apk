@@ -47,6 +47,27 @@ import java.util.regex.Pattern;
  */
 public class KaraokeServer {
 
+    /** Nguồn IP do Android cung cấp (mạng TV đang dùng thật sự). Trả về null nếu không biết. */
+    public interface IpSource {
+        String get();
+    }
+
+    private volatile IpSource ipSource;
+
+    public void setIpSource(IpSource s) { ipSource = s; }
+
+    /** IP đưa vào mã QR: hỏi Android trước, không được thì tự dò card mạng. */
+    public String tvIp() {
+        IpSource s = ipSource;
+        if (s != null) {
+            try {
+                String ip = s.get();
+                if (ip != null && ip.matches("\\d+\\.\\d+\\.\\d+\\.\\d+") && !ip.startsWith("127.")) return ip;
+            } catch (Exception ignored) { }
+        }
+        return lanIp();
+    }
+
     public interface Assets {
         InputStream open(String name) throws IOException;
     }
@@ -129,7 +150,7 @@ public class KaraokeServer {
     public boolean introOnStart() { return introOnStart; }
     public int getPort() { return port; }
     public String localTvUrl() { return "http://127.0.0.1:" + port + "/tv"; }
-    public String remoteUrl() { return "http://" + lanIp() + ":" + port + "/?t=" + token; }
+    public String remoteUrl() { return "http://" + tvIp() + ":" + port + "/?t=" + token; }
 
     private void acceptLoop() {
         while (running) {
@@ -772,7 +793,7 @@ public class KaraokeServer {
                     if (!a.isSiteLocalAddress()) continue;
                     String ip = a.getHostAddress();
                     if (name.startsWith("wlan") || name.startsWith("eth")) return ip;
-                    if (fallback == null) fallback = ip;
+                    if (fallback == null || (ip.startsWith("192.168.") && !fallback.startsWith("192.168."))) fallback = ip;
                 }
             }
         } catch (Exception ignored) { }
