@@ -633,5 +633,65 @@ document.addEventListener('keydown', e => {
   else if (k === 'ArrowDown') send({ type: 'volume', delta: -10 });
 });
 </script>
+<!-- Tìm máy tính đang chạy Milano Karaoke (Mac/Windows) trong mạng nhà: có thì chuyển sang màn hình TV của máy đó -->
+<div id="pcFound" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(5,7,13,.97);color:#fff;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-family:'Be Vietnam Pro',Arial,sans-serif">
+  <div style="font-size:7vh">💻 ➜ 📺</div>
+  <div style="font-size:4.6vh;font-weight:900;margin-top:2vh;color:#ffd36b">Tìm thấy Milano Karaoke trên máy tính</div>
+  <div id="pcName" style="font-size:3vh;margin-top:1.2vh;opacity:.85"></div>
+  <div id="pcCount" style="font-size:3.4vh;margin-top:4vh"></div>
+  <div style="font-size:2.6vh;margin-top:2.5vh;opacity:.75">Bấm <b>OK</b> để chuyển ngay · Bấm <b>Back</b> để hát bằng Karaoke trên TV</div>
+</div>
+<script>
+(function () {
+  if (/[?&]intro=1/.test(location.search)) return;       // màn chào đón lúc mở app: không tìm
+  const PORT = 5080;
+  const box = document.getElementById('pcFound');
+  let target = null, timer = null, stopped = false;
+  const hello = (ip, ms) => {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), ms);
+    return fetch(`http://${ip}:${PORT}/tv/hello`, { signal: c.signal, cache: 'no-store' })
+      .then(r => r.json()).then(j => { clearTimeout(t); if (j && j.app === 'milano-karaoke') return { ip, name: j.name || ip }; throw 0; })
+      .catch(() => { clearTimeout(t); return null; });
+  };
+  function go() { if (target) { stopped = true; location.href = `http://${target.ip}:${PORT}/tv/`; } }
+  function cancel() { stopped = true; clearInterval(timer); box.style.display = 'none'; }
+  function found(pc) {
+    if (stopped || target) return;
+    target = pc;
+    try { localStorage.setItem('mk-pc', pc.ip); } catch (_) {}
+    document.getElementById('pcName').textContent = `${pc.name} (${pc.ip})`;
+    box.style.display = 'flex';
+    let n = 5;
+    const tick = () => { document.getElementById('pcCount').textContent = `Tự chuyển sau ${n} giây…`; if (n-- <= 0) go(); };
+    tick(); timer = setInterval(tick, 1000);
+  }
+  // OK / Back khi đang hiện bảng: chặn trước các phím của trang karaoke
+  window.addEventListener('keydown', e => {
+    if (box.style.display !== 'flex') return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopImmediatePropagation(); go(); }
+    else if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack' || e.key === 'BrowserBack') { e.preventDefault(); e.stopImmediatePropagation(); cancel(); }
+  }, true);
+  const oldBack = window.milanoBack;
+  window.milanoBack = () => {
+    if (box.style.display === 'flex') { cancel(); return true; }
+    return oldBack ? oldBack() : false;
+  };
+  async function scan() {
+    let last = null;
+    try { last = localStorage.getItem('mk-pc'); } catch (_) {}
+    if (last) { const r = await hello(last, 1500); if (r) return found(r); }
+    let me = null;
+    try { const i = await fetch('/api/info').then(r => r.json()); me = (i.remoteUrl.match(/\/\/(\d+\.\d+\.\d+)\.(\d+)/) || []); } catch (_) {}
+    if (!me || !me[1]) return;
+    const ips = [];
+    for (let h = 1; h < 255; h++) if (String(h) !== me[2] && `${me[1]}.${h}` !== last) ips.push(`${me[1]}.${h}`);
+    let k = 0;
+    const worker = async () => { while (!target && !stopped && k < ips.length) { const r = await hello(ips[k++], 1200); if (r) found(r); } };
+    await Promise.all(Array.from({ length: 32 }, worker));
+  }
+  setTimeout(scan, 300);
+})();
+</script>
 </body>
 </html>
